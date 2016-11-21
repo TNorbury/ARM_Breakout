@@ -51,3 +51,8 @@ Temporary Items
 .apdisk
 tnorbury14_program10.cproj
 tnorbury14_program10.componentinfo.xml
+Device_Startup/system_samd21.c
+Device_Startup/system_samd21.c
+Device_Startup/startup_samd21.c
+Device_Startup/samd21g18a_flash.ld
+Device_Startup/samd21g18a_sram.ld
