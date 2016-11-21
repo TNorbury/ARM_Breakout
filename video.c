@@ -213,7 +213,6 @@ uint16_t color)
 	
 	for (i = 0; i < width * height; i++)
 	{
-		//video_parameter(color);
 		write_to_spi(color >> 8);
 		write_to_spi(color & 0xFF);
 	}

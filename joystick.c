@@ -148,30 +148,38 @@ uint16_t joystick_get_Y_Value()
     joystick_sync();
     using_y = true;
     
-		  //Flush the current result
-  ADC->SWTRIG.bit.FLUSH = 1;
-  joystick_sync();
 
+    //Wait for a result to be ready
+    while(!ADC->INTFLAG.bit.RESRDY);
+    joystick_sync();
+    
+    //clear the result ready flag.
+    ADC->INTFLAG.bit.RESRDY = 1;
+    
     //Get the conversion, but don't use it.
     result = ADC->RESULT.reg;
     joystick_sync();
   }
   
-  //Flush the current result
-  ADC->SWTRIG.bit.FLUSH = 1;
-  joystick_sync();
+  ////Flush the current result
+  //ADC->SWTRIG.bit.FLUSH = 1;
+  //joystick_sync();
   
   //Wait for a result to be ready
   while(!ADC->INTFLAG.bit.RESRDY);
   joystick_sync();
   
+  //clear the result ready flag.
+  ADC->INTFLAG.bit.RESRDY = 1;
+
   result = ADC->RESULT.reg;
   joystick_sync();
-
+  
+  
   //while(!ADC->INTFLAG.bit.RESRDY);
   //joystick_sync();
-//
-//
+  //
+  //
   //result = ADC->RESULT.reg;
   //joystick_sync();
 
@@ -190,10 +198,13 @@ uint16_t joystick_get_X_Value()
     joystick_sync();
     using_y = false;
     
-		  //Flush the current result
-  ADC->SWTRIG.bit.FLUSH = 1;
-  joystick_sync();
-
+    //Wait for a result to be ready
+    while(!ADC->INTFLAG.bit.RESRDY);
+    joystick_sync();
+    
+    //clear the result ready flag.
+    ADC->INTFLAG.bit.RESRDY = 1;
+    
     //Get the conversion, but don't use it
     result = ADC->RESULT.reg;
     joystick_sync();
@@ -203,9 +214,16 @@ uint16_t joystick_get_X_Value()
   ADC->SWTRIG.bit.FLUSH = 1;
   joystick_sync();
   
+  //clear the result ready flag.
+  ADC->INTFLAG.bit.RESRDY = 1;
+    
   //Wait for a result to be ready
   while(!ADC->INTFLAG.bit.RESRDY);
   joystick_sync();
+  
+  //clear the result ready flag.
+  ADC->INTFLAG.bit.RESRDY = 1;
+  
   
   result = ADC->RESULT.reg;
   joystick_sync();

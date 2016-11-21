@@ -26,12 +26,18 @@
 #define LEFT_BOUNDARY (10)
 #define RIGHT_BOUNDARY (166)
 #define TOP_BOUNDARY (10)
-#define BOTTOM_BOUNDARY (210)
+#define BOTTOM_BOUNDARY (220)
 
 #define SPEED_MIN (1)
 #define SPEED_MAX (7)
 
-#define BALL_SIZE (8)
+#define BALL_SIZE (4)
+#define BALL_COLOR (0xffff)
+
+#define PADDLE_LENGTH (25)
+#define PADDLE_HEIGHT (4)
+#define PADDLE_COLOR (0x0C5A)
+#define PADDLE_SPEED (2)
 
 //-----------------------------------------------------------------------------
 //     ___      __   ___  __   ___  ___  __
@@ -72,9 +78,11 @@ int main(void)
   uint8_t new_x, new_y;
   int8_t ball_hort_dir, ball_vert_dir;
   int8_t ball_hort_speed, ball_vert_speed;
-  uint16_t color = 0;
-
-  uint16_t joy_y, joy_x;
+  
+  uint8_t paddle_x = 50;
+  uint8_t paddle_y = 190;
+  
+  uint16_t joy_x;
 
   /* Initialize the SAM system */
   SystemInit();
@@ -85,9 +93,9 @@ int main(void)
 
   SysTick_Config(48000); //  Configure the SysTick timer for a ms
 
-  //Create a black screen with a white border
+  //Create a black screen with a white border on the left, right, and top
   video_paint_rect(0, 0, 176, 220, 0xffff);
-  video_paint_rect(10, 10, 156, 200, 0);
+  video_paint_rect(10, 10, 156, 210, 0);
 
   ball_x = 50;
   ball_y = 50;
@@ -109,8 +117,10 @@ int main(void)
       millis = 0;
       __enable_irq();
 
-      ball_hort_speed = calculate_speed(joystick_get_X_Value());
-      ball_vert_speed = calculate_speed(joystick_get_Y_Value());
+      //ball_hort_speed = calculate_speed(joystick_get_X_Value());
+      //ball_vert_speed = calculate_speed(joystick_get_Y_Value());
+      ball_hort_speed = 4;
+      ball_vert_speed = 4;
       new_y = ball_y + (ball_vert_dir * ball_vert_speed);
       new_x = ball_x + (ball_hort_dir * ball_hort_speed);
 
@@ -162,10 +172,61 @@ int main(void)
       //Move the ball based on its speed. Paint it's old position black and then
       // paint it at its new position
       video_paint_rect(ball_x, ball_y, BALL_SIZE, BALL_SIZE, 0);
-      video_paint_rect(new_x, new_y, BALL_SIZE, BALL_SIZE, 0xffff);
+      video_paint_rect(new_x, new_y, BALL_SIZE, BALL_SIZE, BALL_COLOR);
 
       ball_x = new_x;
       ball_y = new_y;
+      
+      
+      
+      
+      //////////////////////////////////////////////////////////////////////////
+      ///////////////////  Move the paddle side to side  ///////////////////////
+      //////////////////////////////////////////////////////////////////////////
+      
+      //Read the joystick position on the x-axis
+      joy_x = joystick_get_X_Value();
+      
+      //If the joystick is to the left of the center, move the paddle left.
+      if (joy_x < (JOYSTICK_CENTER))
+      {
+        new_x = paddle_x + PADDLE_SPEED;
+      }
+      
+      //If the joystick is to the right of the center, move the paddle right.
+      else if (joy_x > (JOYSTICK_CENTER + 150))
+      {
+        new_x = paddle_x - PADDLE_SPEED;
+      }
+      
+      //Otherwise, if the joystick is in the dead zone, then don't move the paddle
+      else
+      {
+        new_x = paddle_x;
+      }
+      
+      //Check to make sure that the paddle doesn't go off the end of the screen.
+      //Check the left boundary
+      if (new_x < LEFT_BOUNDARY)
+      {
+        //If the paddle would move past the left boundary, then just set it to 
+        //the edge.
+        new_x = LEFT_BOUNDARY;
+      }
+      
+      //Check the right boundary
+      else if ((new_x + PADDLE_LENGTH) > RIGHT_BOUNDARY)
+      {
+        //If the paddle would move past the right boundary, then just set it to
+        //the edge.
+        new_x = (RIGHT_BOUNDARY - PADDLE_LENGTH);
+      }
+      
+      video_paint_rect(paddle_x, paddle_y, PADDLE_LENGTH, PADDLE_HEIGHT, 0);
+      video_paint_rect(new_x, paddle_y, PADDLE_LENGTH, PADDLE_HEIGHT, 
+      PADDLE_COLOR);
+      
+      paddle_x = new_x;
     }
   }
 }
