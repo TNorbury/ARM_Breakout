@@ -29,12 +29,12 @@
 #define BOTTOM_BOUNDARY (220)
 
 #define SPEED_MIN (1)
-#define SPEED_MAX (7)
+#define SPEED_MAX (4)
 
 #define BALL_SIZE (4)
 #define BALL_COLOR (0xffff)
 
-#define PADDLE_LENGTH (25)
+#define PADDLE_LENGTH (35)
 #define PADDLE_HEIGHT (4)
 #define PADDLE_COLOR (0x0C5A)
 #define PADDLE_SPEED (2)
@@ -62,8 +62,6 @@ static volatile uint32_t millis;
 //
 //-----------------------------------------------------------------------------
 
-uint8_t calculate_speed(uint16_t joystick_val);
-
 //-----------------------------------------------------------------------------
 //      __        __          __
 //     |__) |  | |__) |    | /  `
@@ -78,6 +76,7 @@ int main(void)
   uint8_t new_x, new_y;
   int8_t ball_hort_dir, ball_vert_dir;
   int8_t ball_hort_speed, ball_vert_speed;
+  uint8_t paddle_center;
   
   uint8_t paddle_x = 50;
   uint8_t paddle_y = 190;
@@ -104,11 +103,12 @@ int main(void)
   video_paint_rect(ball_x, ball_y, BALL_SIZE, BALL_SIZE, 0xffff);
 
   ball_hort_dir = BALL_LEFT;
-  ball_hort_speed = 1;
 
   ball_vert_dir = BALL_UP;
-  ball_vert_speed = 1;
 
+  ball_hort_speed = 2;
+  ball_vert_speed = 1;
+  
   while (1)
   {
     if (millis > 16)
@@ -119,8 +119,6 @@ int main(void)
 
       //ball_hort_speed = calculate_speed(joystick_get_X_Value());
       //ball_vert_speed = calculate_speed(joystick_get_Y_Value());
-      ball_hort_speed = 4;
-      ball_vert_speed = 4;
       new_y = ball_y + (ball_vert_dir * ball_vert_speed);
       new_x = ball_x + (ball_hort_dir * ball_hort_speed);
 
@@ -161,12 +159,50 @@ int main(void)
       //Otherwise, if the ball will run into the bottom boundary
       else if ((new_y + BALL_SIZE) > BOTTOM_BOUNDARY)
       {
-        ball_vert_dir = BALL_UP;
+        
+        //Reset the ball to it's initial position, direction, and speed.
+        new_x = 50;
+        new_y = 50;
 
-        //Calculate the difference between the ball and the boundary and then
-        //offset the ball by that much
-        new_y = BOTTOM_BOUNDARY + ((ball_vert_dir * ball_vert_speed)
-        - (BOTTOM_BOUNDARY - new_y));
+        ball_hort_dir = BALL_LEFT;
+        ball_vert_dir = BALL_UP;
+        
+        ball_hort_speed = 2;
+        ball_vert_speed = 2;
+      }
+      
+      
+      //////////////////////////////////////////////////////////////////////////
+      ///////////////////  Bounce the ball off of the paddle  //////////////////
+      //////////////////////////////////////////////////////////////////////////
+      
+      //If the ball will run into the paddle, bounce it off the paddle.
+      if (((new_x >= paddle_x - 5) && (new_x <= paddle_x + PADDLE_LENGTH))
+      && ((new_y >= paddle_y) && (new_y <= paddle_y + PADDLE_HEIGHT)))
+      {
+        //Bounce the ball upwards
+        ball_vert_dir = BALL_UP;
+        
+        //Calculate the angle at which the ball needs to bounce.
+        paddle_center = (paddle_x + PADDLE_LENGTH) - (PADDLE_LENGTH / 2);
+        
+        //Calculate how far away from the center the ball is and use that to
+        //determine the angle at which is bounces.
+        if (ball_x >= paddle_center)
+        {
+          ball_vert_speed = (SPEED_MAX + SPEED_MIN) - ((((SPEED_MAX - SPEED_MIN)
+          * (ball_x - paddle_center)) / ((paddle_x + PADDLE_LENGTH)
+          - paddle_center)) + SPEED_MIN);
+        }
+        else
+        {
+          ball_vert_speed = (((SPEED_MAX - SPEED_MIN) * (ball_x - paddle_x))
+          / (paddle_center - paddle_x)) + SPEED_MIN;
+        }
+        
+        //Calculate how far up the ball needs to bounce
+        new_y = paddle_y + ((ball_vert_dir * ball_vert_speed)
+        - (paddle_y - new_y));
       }
 
       //Move the ball based on its speed. Paint it's old position black and then
@@ -176,9 +212,6 @@ int main(void)
 
       ball_x = new_x;
       ball_y = new_y;
-      
-      
-      
       
       //////////////////////////////////////////////////////////////////////////
       ///////////////////  Move the paddle side to side  ///////////////////////
@@ -209,7 +242,7 @@ int main(void)
       //Check the left boundary
       if (new_x < LEFT_BOUNDARY)
       {
-        //If the paddle would move past the left boundary, then just set it to 
+        //If the paddle would move past the left boundary, then just set it to
         //the edge.
         new_x = LEFT_BOUNDARY;
       }
@@ -222,11 +255,13 @@ int main(void)
         new_x = (RIGHT_BOUNDARY - PADDLE_LENGTH);
       }
       
+      //Redraw the paddle and update its position.
       video_paint_rect(paddle_x, paddle_y, PADDLE_LENGTH, PADDLE_HEIGHT, 0);
-      video_paint_rect(new_x, paddle_y, PADDLE_LENGTH, PADDLE_HEIGHT, 
+      video_paint_rect(new_x, paddle_y, PADDLE_LENGTH, PADDLE_HEIGHT,
       PADDLE_COLOR);
       
       paddle_x = new_x;
+
     }
   }
 }
@@ -237,21 +272,6 @@ int main(void)
 //     |    |  \ |  \/  /~~\  |  |___
 //
 //-----------------------------------------------------------------------------
-
-uint8_t calculate_speed(uint16_t joystick_val)
-{
-  uint8_t speed;
-
-  //Take the adc value and convert it into the range of speed min to speed max
-  speed = (SPEED_MAX + SPEED_MIN) -
-  (
-  (((SPEED_MAX - SPEED_MIN) * (joystick_val - JOYSTICK_MIN))
-  / (JOYSTICK_MAX - JOYSTICK_MIN)) + SPEED_MIN
-  );
-
-  return speed;
-
-}
 
 //-----------------------------------------------------------------------------
 //        __   __   __
