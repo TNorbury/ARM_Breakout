@@ -10,6 +10,8 @@
 #include "spi.h"
 #include "video.h"
 
+#include <stdbool.h>
+
 //-----------------------------------------------------------------------------
 //      __   ___  ___         ___  __
 //     |  \ |__  |__  | |\ | |__  /__`
@@ -39,12 +41,26 @@
 #define PADDLE_COLOR (0x0C5A)
 #define PADDLE_SPEED (2)
 
+#define BRICK_WIDTH (12)
+#define BRICK_HEIGHT (10)
+#define BRICKS_IN_ROW (156 / BRICK_WIDTH)
+#define NUM_ROWS (6)
+
+#define BRICK_BOTTOM_BOUNDARY (90)
+
 //-----------------------------------------------------------------------------
 //     ___      __   ___  __   ___  ___  __
 //      |  \ / |__) |__  |  \ |__  |__  /__`
 //      |   |  |    |___ |__/ |___ |    .__/
 //
 //-----------------------------------------------------------------------------
+
+typedef struct {
+  uint8_t x;
+  uint8_t y;
+  uint16_t color;
+  bool hit;
+} brick_t;
 
 //-----------------------------------------------------------------------------
 //                __          __        ___  __
@@ -54,6 +70,8 @@
 //-----------------------------------------------------------------------------
 
 static volatile uint32_t millis;
+static const uint16_t ROW_COLORS[6] = {0x1d60, 0x93BB, 0x70E6, 0x4639, 0xCD28,
+0x4B4E};
 
 //-----------------------------------------------------------------------------
 //      __   __   __  ___  __  ___      __   ___  __
@@ -61,6 +79,13 @@ static volatile uint32_t millis;
 //     |    |  \ \__/  |  \__/  |   |  |    |___ .__/
 //
 //-----------------------------------------------------------------------------
+
+void init_bricks(brick_t* bricks);
+void paint_bricks(brick_t* bricks);
+bool check_brick_collision(brick_t* bricks, uint8_t ball_x, uint8_t ball_y, uint8_t* new_x, uint8_t* new_y,
+int8_t* hort_dir, int8_t* vert_dir, int8_t hort_speed, int8_t vert_speed);
+
+
 
 //-----------------------------------------------------------------------------
 //      __        __          __
@@ -77,11 +102,14 @@ int main(void)
   int8_t ball_hort_dir, ball_vert_dir;
   int8_t ball_hort_speed, ball_vert_speed;
   uint8_t paddle_center;
+  uint8_t ball_speed = 1;
   
   uint8_t paddle_x = 50;
   uint8_t paddle_y = 190;
   
   uint16_t joy_x;
+  
+  brick_t bricks[(BRICKS_IN_ROW * NUM_ROWS)];
 
   /* Initialize the SAM system */
   SystemInit();
@@ -96,8 +124,8 @@ int main(void)
   video_paint_rect(0, 0, 176, 220, 0xffff);
   video_paint_rect(10, 10, 156, 210, 0);
 
-  ball_x = 50;
-  ball_y = 50;
+  ball_x = paddle_x + BALL_SIZE + 1;
+  ball_y = paddle_y + BALL_SIZE + 1;
 
   //Paint the ball in its initial spot.
   video_paint_rect(ball_x, ball_y, BALL_SIZE, BALL_SIZE, 0xffff);
@@ -106,8 +134,13 @@ int main(void)
 
   ball_vert_dir = BALL_UP;
 
-  ball_hort_speed = 2;
+  ball_hort_speed = ball_speed;
   ball_vert_speed = 1;
+  
+  
+  //Initialize the bricks
+  init_bricks(bricks);
+  paint_bricks(bricks);
   
   while (1)
   {
@@ -117,18 +150,34 @@ int main(void)
       millis = 0;
       __enable_irq();
 
-      //ball_hort_speed = calculate_speed(joystick_get_X_Value());
-      //ball_vert_speed = calculate_speed(joystick_get_Y_Value());
       new_y = ball_y + (ball_vert_dir * ball_vert_speed);
       new_x = ball_x + (ball_hort_dir * ball_hort_speed);
+      
+      
+      
+      //////////////////////////////////////////////////////////////////////////
+      ///////////////////  Check if the ball will hit a brick  /////////////////
+      //////////////////////////////////////////////////////////////////////////
+      if (new_y < BRICK_BOTTOM_BOUNDARY)
+      {
+        
+        //Check if any bricks were hit, if any were then redraw the bricks
+        if (check_brick_collision(bricks, ball_x, ball_y, &new_x, &new_y,
+          &ball_hort_dir, &ball_vert_dir, ball_hort_speed, ball_vert_speed))
+        {
+          paint_bricks(bricks);
+        }
+      }
+      
+
+      //if the ball will run into a boundary then calculate the difference
+      //between the ball and the boundary and then offset the ball by that much
 
       //if the ball will run into the left boundary
       if (new_x < LEFT_BOUNDARY)
       {
         ball_hort_dir = BALL_RIGHT;
 
-        //Calculate the difference between the ball and the boundary and then
-        //offset the ball by that much
         new_x = LEFT_BOUNDARY + ((ball_hort_dir * ball_hort_speed)
         - (ball_x - LEFT_BOUNDARY));
       }
@@ -138,8 +187,6 @@ int main(void)
       {
         ball_hort_dir = BALL_LEFT;
 
-        //Calculate the difference between the ball and the boundary and then
-        //offset the ball by that much
         new_x = RIGHT_BOUNDARY + ((ball_hort_dir * ball_hort_speed)
         - (RIGHT_BOUNDARY - ball_x));
       }
@@ -150,10 +197,8 @@ int main(void)
       {
         ball_vert_dir = BALL_DOWN;
 
-        //Calculate the difference between the ball and the boundary and then
-        //offset the ball by that much
         new_y = TOP_BOUNDARY + ((ball_vert_dir * ball_vert_speed)
-        - (new_y - TOP_BOUNDARY));
+        - (ball_y - TOP_BOUNDARY));
       }
 
       //Otherwise, if the ball will run into the bottom boundary
@@ -161,14 +206,14 @@ int main(void)
       {
         
         //Reset the ball to it's initial position, direction, and speed.
-        new_x = 50;
-        new_y = 50;
+        new_x = paddle_x + BALL_SIZE + 1;
+        new_y = paddle_y + BALL_SIZE + 1;
 
         ball_hort_dir = BALL_LEFT;
         ball_vert_dir = BALL_UP;
         
-        ball_hort_speed = 2;
-        ball_vert_speed = 2;
+        ball_hort_speed = ball_speed;
+        ball_vert_speed = 1;
       }
       
       
@@ -232,7 +277,8 @@ int main(void)
         new_x = paddle_x - PADDLE_SPEED;
       }
       
-      //Otherwise, if the joystick is in the dead zone, then don't move the paddle
+      //Otherwise, if the joystick is in the dead zone, then don't move the
+      //paddle
       else
       {
         new_x = paddle_x;
@@ -272,6 +318,112 @@ int main(void)
 //     |    |  \ |  \/  /~~\  |  |___
 //
 //-----------------------------------------------------------------------------
+
+//=============================================================================
+void init_bricks(brick_t* bricks)
+{
+  
+  //For every every, and every brick in that row. Set the brick to its
+  //initial state.
+  for (int i = 0; i < NUM_ROWS; i++)
+  {
+    for (int j = 0; j < BRICKS_IN_ROW; j++)
+    {
+      bricks[((i * BRICKS_IN_ROW) + j)].x = 10 + (BRICK_WIDTH * j);
+      bricks[((i * BRICKS_IN_ROW) + j)].y = (BRICK_BOTTOM_BOUNDARY - (BRICK_HEIGHT * (i + 1)));
+      bricks[((i * BRICKS_IN_ROW) + j)].color = ROW_COLORS[i];
+      bricks[((i * BRICKS_IN_ROW) + j)].hit = false;
+    }
+  }
+}
+
+
+//=============================================================================
+void paint_bricks(brick_t* bricks)
+{
+  //For all the bricks
+  for (int i = 0; i < (BRICKS_IN_ROW * NUM_ROWS); i++)
+  {
+    
+    //If the brick hasn't been hit then paint it
+    if (!bricks[i].hit)
+    {
+      video_paint_rect(bricks[i].x, bricks[i].y, BRICK_WIDTH, BRICK_HEIGHT,
+      bricks[i].color);
+    }
+    else
+    {
+      video_paint_rect(bricks[i].x, bricks[i].y, BRICK_WIDTH, BRICK_HEIGHT, 0);
+    }
+  }
+}
+
+//=============================================================================
+bool check_brick_collision(brick_t* bricks, uint8_t ball_x, uint8_t ball_y,
+uint8_t* new_x, uint8_t* new_y, int8_t* hort_dir, int8_t* vert_dir,
+int8_t hort_speed, int8_t vert_speed)
+{
+  bool brick_hit = false;
+  
+  //Iterate through all the bricks
+  for (int i = 0; (i < (BRICKS_IN_ROW * NUM_ROWS)) && !brick_hit; i++)
+  {
+    
+    //If the brick hasn't been hit, then check if there is a collision
+    if (!bricks[i].hit)
+    {
+      ((new_x + BALL_SIZE) > bricks[i].x)
+      ((new_y + BALL_SIZE) > bricks[i].y)
+      (new_x < (bricks[i].x + BRICK_WIDTH))
+      (new_y < (bricks[i].y + BRICK_HEIGHT))
+      
+      if (((new_x + BALL_SIZE) > bricks[i].x))
+      {
+        brick_hit = true;
+        
+        *hort_dir = BALL_RIGHT;
+
+        *new_x = LEFT_BOUNDARY + ((*hort_dir * hort_speed)
+        - (ball_x - LEFT_BOUNDARY));
+      }
+      else if (((new_y + BALL_SIZE) > bricks[i].y))
+      {
+        brick_hit = true;
+        
+        *vert_dir = BALL_UP;
+
+        new_y = BOTTOM_BOUNDARY + ((*vert_dir * vert_speed)
+        - (BOTTOM_BOUNDARY - *new_y));
+      }
+      else if ((new_x < (bricks[i].x + BRICK_WIDTH)))
+      {
+        brick_hit = true;
+        
+        *hort_dir = BALL_LEFT;
+
+        *new_x = RIGHT_BOUNDARY + ((*hort_dir * hort_speed)
+        - (RIGHT_BOUNDARY - ball_x));
+      }
+      else if ((new_y < (bricks[i].y + BRICK_HEIGHT)))
+      {
+        brick_hit = true;
+        
+        *vert_dir = BALL_DOWN;
+
+        *new_y = TOP_BOUNDARY + ((*vert_dir * vert_speed)
+        - (ball_y - TOP_BOUNDARY));
+      }
+      
+      //if a brick was hit then set the brick's hit flag
+      if (brick_hit)
+      {
+        bricks[i].hit = true;
+      }
+    }
+  }
+  
+  return brick_hit;
+}
 
 //-----------------------------------------------------------------------------
 //        __   __   __
