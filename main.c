@@ -162,11 +162,8 @@ int main(void)
       {
         
         //Check if any bricks were hit, if any were then redraw the bricks
-        if (check_brick_collision(bricks, ball_x, ball_y, &new_x, &new_y,
-          &ball_hort_dir, &ball_vert_dir, ball_hort_speed, ball_vert_speed))
-        {
-          paint_bricks(bricks);
-        }
+        check_brick_collision(bricks, ball_x, ball_y, &new_x, &new_y, 
+        &ball_hort_dir, &ball_vert_dir, ball_hort_speed, ball_vert_speed);
       }
       
 
@@ -351,10 +348,6 @@ void paint_bricks(brick_t* bricks)
       video_paint_rect(bricks[i].x, bricks[i].y, BRICK_WIDTH, BRICK_HEIGHT,
       bricks[i].color);
     }
-    else
-    {
-      video_paint_rect(bricks[i].x, bricks[i].y, BRICK_WIDTH, BRICK_HEIGHT, 0);
-    }
   }
 }
 
@@ -372,11 +365,13 @@ int8_t hort_speed, int8_t vert_speed)
     //If the brick hasn't been hit, then check if there is a collision
     if (!bricks[i].hit)
     {
-      ((new_x + BALL_SIZE) > bricks[i].x)
-      ((new_y + BALL_SIZE) > bricks[i].y)
-      (new_x < (bricks[i].x + BRICK_WIDTH))
-      (new_y < (bricks[i].y + BRICK_HEIGHT))
+      //((new_x + BALL_SIZE) > bricks[i].x)
+      //((new_y + BALL_SIZE) > bricks[i].y)
+      //(new_x < (bricks[i].x + BRICK_WIDTH))
+      //(new_y < (bricks[i].y + BRICK_HEIGHT))
       
+      
+      //Need to check if it's within the boundaries of left, right, top, and bottom.
       if (((new_x + BALL_SIZE) > bricks[i].x))
       {
         brick_hit = true;
@@ -417,7 +412,9 @@ int8_t hort_speed, int8_t vert_speed)
       //if a brick was hit then set the brick's hit flag
       if (brick_hit)
       {
+        //Paint the brick that was hit black.
         bricks[i].hit = true;
+        video_paint_rect(bricks[i].x, bricks[i].y, BRICK_WIDTH, BRICK_HEIGHT, 0);
       }
     }
   }
