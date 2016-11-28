@@ -40,6 +40,7 @@
 #define PADDLE_HEIGHT (4)
 #define PADDLE_COLOR (0x0C5A)
 #define PADDLE_SPEED (2)
+#define PADDLE_CENTER ((paddle_x + PADDLE_LENGTH) - (PADDLE_LENGTH / 2))
 
 #define BRICK_WIDTH (12)
 #define BRICK_HEIGHT (10)
@@ -104,7 +105,7 @@ int main(void)
   uint8_t paddle_center;
   uint8_t ball_speed = 1;
   
-  uint8_t paddle_x = 50;
+  uint8_t paddle_x = 100;
   uint8_t paddle_y = 190;
   
   uint16_t joy_x;
@@ -124,8 +125,8 @@ int main(void)
   video_paint_rect(0, 0, 176, 220, 0xffff);
   video_paint_rect(10, 10, 156, 210, 0);
 
-  ball_x = paddle_x + BALL_SIZE + 1;
-  ball_y = paddle_y + BALL_SIZE + 1;
+  ball_x = PADDLE_CENTER;
+  ball_y = paddle_y - BALL_SIZE - 1;
 
   //Paint the ball in its initial spot.
   video_paint_rect(ball_x, ball_y, BALL_SIZE, BALL_SIZE, 0xffff);
@@ -162,7 +163,7 @@ int main(void)
       {
         
         //Check if any bricks were hit, if any were then redraw the bricks
-        check_brick_collision(bricks, ball_x, ball_y, &new_x, &new_y, 
+        check_brick_collision(bricks, ball_x, ball_y, &new_x, &new_y,
         &ball_hort_dir, &ball_vert_dir, ball_hort_speed, ball_vert_speed);
       }
       
@@ -203,8 +204,8 @@ int main(void)
       {
         
         //Reset the ball to it's initial position, direction, and speed.
-        new_x = paddle_x + BALL_SIZE + 1;
-        new_y = paddle_y + BALL_SIZE + 1;
+        new_x = PADDLE_CENTER;
+        new_y = paddle_y - BALL_SIZE - 1;
 
         ball_hort_dir = BALL_LEFT;
         ball_vert_dir = BALL_UP;
@@ -225,21 +226,18 @@ int main(void)
         //Bounce the ball upwards
         ball_vert_dir = BALL_UP;
         
-        //Calculate the angle at which the ball needs to bounce.
-        paddle_center = (paddle_x + PADDLE_LENGTH) - (PADDLE_LENGTH / 2);
-        
         //Calculate how far away from the center the ball is and use that to
         //determine the angle at which is bounces.
-        if (ball_x >= paddle_center)
+        if (ball_x >= PADDLE_CENTER)
         {
           ball_vert_speed = (SPEED_MAX + SPEED_MIN) - ((((SPEED_MAX - SPEED_MIN)
-          * (ball_x - paddle_center)) / ((paddle_x + PADDLE_LENGTH)
-          - paddle_center)) + SPEED_MIN);
+          * (ball_x - PADDLE_CENTER)) / ((paddle_x + PADDLE_LENGTH)
+          - PADDLE_CENTER)) + SPEED_MIN);
         }
         else
         {
           ball_vert_speed = (((SPEED_MAX - SPEED_MIN) * (ball_x - paddle_x))
-          / (paddle_center - paddle_x)) + SPEED_MIN;
+          / (PADDLE_CENTER - paddle_x)) + SPEED_MIN;
         }
         
         //Calculate how far up the ball needs to bounce
@@ -327,7 +325,8 @@ void init_bricks(brick_t* bricks)
     for (int j = 0; j < BRICKS_IN_ROW; j++)
     {
       bricks[((i * BRICKS_IN_ROW) + j)].x = 10 + (BRICK_WIDTH * j);
-      bricks[((i * BRICKS_IN_ROW) + j)].y = (BRICK_BOTTOM_BOUNDARY - (BRICK_HEIGHT * (i + 1)));
+      bricks[((i * BRICKS_IN_ROW) + j)].y
+      = (BRICK_BOTTOM_BOUNDARY - (BRICK_HEIGHT * (i + 1)));
       bricks[((i * BRICKS_IN_ROW) + j)].color = ROW_COLORS[i];
       bricks[((i * BRICKS_IN_ROW) + j)].hit = false;
     }
@@ -365,53 +364,64 @@ int8_t hort_speed, int8_t vert_speed)
     //If the brick hasn't been hit, then check if there is a collision
     if (!bricks[i].hit)
     {
-      //((new_x + BALL_SIZE) > bricks[i].x)
-      //((new_y + BALL_SIZE) > bricks[i].y)
-      //(new_x < (bricks[i].x + BRICK_WIDTH))
-      //(new_y < (bricks[i].y + BRICK_HEIGHT))
       
-      
-      //Need to check if it's within the boundaries of left, right, top, and bottom.
-      if (((new_x + BALL_SIZE) > bricks[i].x))
+      //if any part of the ball passes through a brick, set the brick_hit flag
+      if (
+      ((((*new_x + BALL_SIZE) > bricks[i].x)
+      && ((*new_x + BALL_SIZE) < (bricks[i].x + BRICK_WIDTH)))
+      && (((*new_y + BALL_SIZE) > bricks[i].y)
+      && ((*new_y + BALL_SIZE) < (bricks[i].y + BRICK_HEIGHT))))
+      || (((*new_x < (bricks[i].x + BRICK_WIDTH))
+      && (*new_x > bricks[i].x))
+      && (*new_y < (bricks[i].y + BRICK_HEIGHT))
+      && (*new_y > bricks[i].y))
+      )
       {
         brick_hit = true;
-        
-        *hort_dir = BALL_RIGHT;
-
-        *new_x = LEFT_BOUNDARY + ((*hort_dir * hort_speed)
-        - (ball_x - LEFT_BOUNDARY));
-      }
-      else if (((new_y + BALL_SIZE) > bricks[i].y))
-      {
-        brick_hit = true;
-        
-        *vert_dir = BALL_UP;
-
-        new_y = BOTTOM_BOUNDARY + ((*vert_dir * vert_speed)
-        - (BOTTOM_BOUNDARY - *new_y));
-      }
-      else if ((new_x < (bricks[i].x + BRICK_WIDTH)))
-      {
-        brick_hit = true;
-        
-        *hort_dir = BALL_LEFT;
-
-        *new_x = RIGHT_BOUNDARY + ((*hort_dir * hort_speed)
-        - (RIGHT_BOUNDARY - ball_x));
-      }
-      else if ((new_y < (bricks[i].y + BRICK_HEIGHT)))
-      {
-        brick_hit = true;
-        
-        *vert_dir = BALL_DOWN;
-
-        *new_y = TOP_BOUNDARY + ((*vert_dir * vert_speed)
-        - (ball_y - TOP_BOUNDARY));
       }
       
       //if a brick was hit then set the brick's hit flag
       if (brick_hit)
       {
+        //Since a brick was hit, calculate how the ball should bounce.
+        if ((ball_y >= (bricks[i].y + BRICK_HEIGHT)) && (*vert_dir == BALL_UP))
+        {
+          brick_hit = true;
+          
+          *vert_dir = BALL_DOWN;
+
+          *new_y = (bricks[i].y + BRICK_HEIGHT) + ((*vert_dir * vert_speed)
+          - (ball_y - (bricks[i].y + BRICK_HEIGHT)));
+        }
+        else if ((ball_x <= bricks[i].x) && (*hort_dir == BALL_RIGHT))
+        {
+          brick_hit = true;
+          
+          *hort_dir = BALL_LEFT;
+
+          *new_x = bricks[i].x + ((*hort_dir * hort_speed)
+          - (ball_x - bricks[i].x));
+        }
+        else if ((ball_y <= bricks[i].y) && (*vert_dir == BALL_DOWN))
+        {
+          brick_hit = true;
+          
+          *vert_dir = BALL_UP;
+
+          new_y = bricks[i].y + ((*vert_dir * vert_speed)
+          - (bricks[i].y - *new_y));
+        }
+        else if ((ball_x >= (bricks[i].x + BRICK_WIDTH))
+        && (*hort_dir == BALL_LEFT))
+        {
+          brick_hit = true;
+          
+          *hort_dir = BALL_RIGHT;
+
+          *new_x = (bricks[i].x + BRICK_WIDTH) + ((*hort_dir * hort_speed)
+          - ((bricks[i].x + BRICK_WIDTH) - ball_x));
+        }
+        
         //Paint the brick that was hit black.
         bricks[i].hit = true;
         video_paint_rect(bricks[i].x, bricks[i].y, BRICK_WIDTH, BRICK_HEIGHT, 0);

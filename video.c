@@ -210,7 +210,7 @@ uint16_t color)
 	video_index(GRAM_DATA_WRITE);
 	chipsel_on();
 	write_to_spi(0x72);
-	
+
 	for (i = 0; i < width * height; i++)
 	{
 		write_to_spi(color >> 8);
