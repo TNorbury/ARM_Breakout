@@ -31,7 +31,7 @@
 
 #define LEFT_BOUNDARY (10)
 #define RIGHT_BOUNDARY (166)
-#define TOP_BOUNDARY (10)
+#define TOP_BOUNDARY (44)
 #define BOTTOM_BOUNDARY (220)
 
 #define SPEED_MIN (1)
@@ -51,7 +51,7 @@
 #define BRICKS_IN_ROW (156 / BRICK_WIDTH)
 #define NUM_ROWS (6)
 
-#define BRICK_BOTTOM_BOUNDARY (100)
+#define BRICK_BOTTOM_BOUNDARY (124)
 
 //-----------------------------------------------------------------------------
 //     ___      __   ___  __   ___  ___  __
@@ -67,6 +67,15 @@ typedef struct {
   bool hit;
 } brick_t;
 
+enum  uint8_t {
+  level_1,
+  level_2,
+  level_3,
+  level_4,
+  level_5,
+  level_6
+  };
+
 //-----------------------------------------------------------------------------
 //                __          __        ___  __
 //     \  /  /\  |__) |  /\  |__) |    |__  /__`
@@ -81,6 +90,7 @@ static font_t* font6x8;
 static font_t* font8x8;
 static font_t* font8x12;
 static font_t* font12x16;
+static uint8_t brick_count;
 
 //-----------------------------------------------------------------------------
 //      __   __   __  ___  __  ___      __   ___  __
@@ -94,7 +104,7 @@ void paint_bricks(brick_t* bricks);
 bool check_brick_collision(brick_t* bricks, uint8_t ball_x, uint8_t ball_y, 
   uint8_t* new_x, uint8_t* new_y, int8_t* hort_dir, int8_t* vert_dir, 
   int8_t hort_speed, int8_t vert_speed);
-void display_score(uint8_t score, uint8_t x, uint8_t y, uint16_t fg,
+void display_score(uint16_t score, uint8_t x, uint8_t y, uint16_t fg,
   uint16_t bg);
 
 
@@ -120,6 +130,10 @@ int main(void)
   
   uint16_t joy_x;
   
+  uint16_t high_score, current_score;
+  uint8_t num_lives = 5;
+  uint8_t current_level = level_1;
+  
   brick_t bricks[(BRICKS_IN_ROW * NUM_ROWS)];
 
   /* Initialize the SAM system */
@@ -136,11 +150,12 @@ int main(void)
   font8x12 = font_get(FONT_8x12);
   font12x16 = font_get(FONT_12x16);
 
-  //Create a black screen with a white border on the left, right, and top
-  video_paint_rect(0, 0, 176, 220, 0xffff);
-  video_paint_rect(10, 10, 156, 210, 0);
+  video_paint_rect(0, 0, 176, 220, 0);
 
-  video_paint_string("hello", font8x8, 10, 10, 0xffff, 0);
+  //Create a black screen with a white border on the left, right, and top
+  video_paint_rect(0, 34, 176, 220, 0xffff);
+  video_paint_rect(10, 44, 156, 210, 0);
+
   ball_x = PADDLE_CENTER;
   ball_y = paddle_y - BALL_SIZE - 1;
 
@@ -158,8 +173,15 @@ int main(void)
   //Initialize the bricks
   init_bricks(bricks);
   paint_bricks(bricks);
-
-  display_score(100, 10, 10, 0xffff, 0);
+  
+  //Current Score
+  current_score = 0;
+  display_score(current_score, 122, 0, 0xffff, 0);
+  
+  //High Score
+  high_score = 0;
+  display_score(high_score, 0, 0, 0xffff, 0);
+  
   
   while (1)
   {
@@ -178,9 +200,25 @@ int main(void)
       if (new_y < BRICK_BOTTOM_BOUNDARY)
       {
         
-        //Check if any bricks were hit, if any were then redraw the bricks
-        check_brick_collision(bricks, ball_x, ball_y, &new_x, &new_y,
-        &ball_hort_dir, &ball_vert_dir, ball_hort_speed, ball_vert_speed);
+        //If any bricks were hit, increment the score and redraw the display
+        if (check_brick_collision(bricks, ball_x, ball_y, &new_x, &new_y,
+        &ball_hort_dir, &ball_vert_dir, ball_hort_speed, ball_vert_speed))
+        {
+          current_score++;
+          display_score(current_score, 122, 0, 0xffff, 0);
+          
+          //If the new current score surpassed the high score, update it.
+          if (current_score > high_score)
+          {
+            high_score = current_score;
+            display_score(high_score, 0, 0, 0xffff, 0);
+          }
+          
+          if (brick_count == 0)
+          {
+          }
+          
+        }
       }
       
 
@@ -318,7 +356,6 @@ int main(void)
       PADDLE_COLOR);
       
       paddle_x = new_x;
-
     }
   }
 }
@@ -333,6 +370,7 @@ int main(void)
 //=============================================================================
 void init_bricks(brick_t* bricks)
 {
+  brick_count = BRICKS_IN_ROW * NUM_ROWS;
   
   //For every every, and every brick in that row. Set the brick to its
   //initial state.
@@ -441,6 +479,8 @@ int8_t hort_speed, int8_t vert_speed)
         //Paint the brick that was hit black.
         bricks[i].hit = true;
         video_paint_rect(bricks[i].x, bricks[i].y, BRICK_WIDTH, BRICK_HEIGHT, 0);
+        
+        brick_count --;
       }
     }
   }
@@ -449,81 +489,92 @@ int8_t hort_speed, int8_t vert_speed)
 }
 
 //=============================================================================
-void display_score(uint8_t score, uint8_t x, uint8_t y, uint16_t fg,
+void display_score(uint16_t score, uint8_t x, uint8_t y, uint16_t fg,
 uint16_t bg)
 {
-  uint8_t tens_digit, ones_digit, digit;
+  uint8_t hundreds_digit, tens_digit, ones_digit, digit;
   
   //Parse the tens and ones digit of the score
+  hundreds_digit = score % 1000 / 100;
   tens_digit = score % 100 / 10;
   ones_digit = score % 10 / 1;
   
   //Print the 10s digit, and then the 1s digit
-  digit = tens_digit;
-  for (int i = 0; i < 2; i ++)
+  digit = hundreds_digit;
+  for (int i = 0; i < 3; i ++)
   {
+   // font12x16
     switch (digit)
     {
       case 0:
-      video_paint_string(" _ ", font8x8, (x + (36 * i)), y, fg, bg);
-      video_paint_string("| |", font8x8, (x + (36 * i)), (y + 16), fg, bg);
-      video_paint_string("|_|", font8x8, (x + (36 * i)), (y + 32), fg, bg);
+      video_paint_string(" _ ", font6x8, (x + (18 * i)), y, fg, bg);
+      video_paint_string("| |", font6x8, (x + (18 * i)), (y + 8), fg, bg);
+      video_paint_string("|_|", font6x8, (x + (18 * i)), (y + 16), fg, bg);
       break;
       
       case 1:
-      video_paint_string("  |", font8x8, (x + (36 * i)), (y + 16), fg, bg);
-      video_paint_string("  |", font8x8, (x + (36 * i)), (y + 32), fg, bg);
+      video_paint_string("   ", font6x8, (x + (18 * i)), y, fg, bg);
+      video_paint_string("  |", font6x8, (x + (18 * i)), (y + 8), fg, bg);
+      video_paint_string("  |", font6x8, (x + (18 * i)), (y + 16), fg, bg);
       break;
       
       case 2:
-      video_paint_string(" _ ", font8x8, (x + (36 * i)), y, fg, bg);
-      video_paint_string(" _|", font8x8, (x + (36 * i)), (y + 16), fg, bg);
-      video_paint_string("|_ ", font8x8, (x + (36 * i)), (y + 32), fg, bg);
+      video_paint_string(" _ ", font6x8, (x + (18 * i)), y, fg, bg);
+      video_paint_string(" _|", font6x8, (x + (18 * i)), (y + 8), fg, bg);
+      video_paint_string("|_ ", font6x8, (x + (18 * i)), (y + 16), fg, bg);
       break;
       
       case 3:
-      video_paint_string(" _ ", font8x8, (x + (36 * i)), y, fg, bg);
-      video_paint_string(" _|", font8x8, (x + (36 * i)), (y + 16), fg, bg);
-      video_paint_string(" _|", font8x8, (x + (36 * i)), (y + 32), fg, bg);
+      video_paint_string(" _ ", font6x8, (x + (18 * i)), y, fg, bg);
+      video_paint_string(" _|", font6x8, (x + (18 * i)), (y + 8), fg, bg);
+      video_paint_string(" _|", font6x8, (x + (18 * i)), (y + 16), fg, bg);
       break;
       
       case 4:
-      video_paint_string("|_|", font8x8, (x + (36 * i)), (y + 16), fg, bg);
-      video_paint_string("  |", font8x8, (x + (36 * i)), (y + 32), fg, bg);
+      video_paint_string("   ", font6x8, (x + (18 * i)), y, fg, bg);
+      video_paint_string("|_|", font6x8, (x + (18 * i)), (y + 8), fg, bg);
+      video_paint_string("  |", font6x8, (x + (18 * i)), (y + 16), fg, bg);
       break;
       
       case 5:
-      video_paint_string(" _ ", font8x8, (x + (36 * i)), y, fg, bg);
-      video_paint_string("|_ ", font8x8, (x + (36 * i)), (y + 16), fg, bg);
-      video_paint_string(" _|", font8x8, (x + (36 * i)), (y + 32), fg, bg);
+      video_paint_string(" _ ", font6x8, (x + (18 * i)), y, fg, bg);
+      video_paint_string("|_ ", font6x8, (x + (18 * i)), (y + 8), fg, bg);
+      video_paint_string(" _|", font6x8, (x + (18 * i)), (y + 16), fg, bg);
       break;
       
       case 6:
-      video_paint_string(" _ ", font8x8, (x + (36 * i)), y, fg, bg);
-      video_paint_string("|_ ", font8x8, (x + (36 * i)), (y + 16), fg, bg);
-      video_paint_string("|_|", font8x8, (x + (36 * i)), (y + 32), fg, bg);
+      video_paint_string(" _ ", font6x8, (x + (18 * i)), y, fg, bg);
+      video_paint_string("|_ ", font6x8, (x + (18 * i)), (y + 8), fg, bg);
+      video_paint_string("|_|", font6x8, (x + (18 * i)), (y + 16), fg, bg);
       break;
       
       case 7:
-      video_paint_string(" _ ", font8x8, (x + (36 * i)), y, fg, bg);
-      video_paint_string("  |", font8x8, (x + (36 * i)), (y + 16), fg, bg);
-      video_paint_string("  |", font8x8, (x + (36 * i)), (y + 32), fg, bg);
+      video_paint_string(" _ ", font6x8, (x + (18 * i)), y, fg, bg);
+      video_paint_string("  |", font6x8, (x + (18 * i)), (y + 8), fg, bg);
+      video_paint_string("  |", font6x8, (x + (18 * i)), (y + 16), fg, bg);
       break;
       
       case 8:
-      video_paint_string(" _ ", font8x8, (x + (36 * i)), y, fg, bg);
-      video_paint_string("|_|", font8x8, (x + (36 * i)), (y + 16), fg, bg);
-      video_paint_string("|_|", font8x8, (x + (36 * i)), (y + 32), fg, bg);
+      video_paint_string(" _ ", font6x8, (x + (18 * i)), y, fg, bg);
+      video_paint_string("|_|", font6x8, (x + (18 * i)), (y + 8), fg, bg);
+      video_paint_string("|_|", font6x8, (x + (18 * i)), (y + 16), fg, bg);
       break;
       
       case 9:
-      video_paint_string(" _ ", font8x8, (x + (36 * i)), y, fg, bg);
-      video_paint_string("|_|", font8x8, (x + (36 * i)), (y + 16), fg, bg);
-      video_paint_string("  |", font8x8, (x + (36 * i)), (y + 32), fg, bg);
+      video_paint_string(" _ ", font6x8, (x + (18 * i)), y, fg, bg);
+      video_paint_string("|_|", font6x8, (x + (18 * i)), (y + 8), fg, bg);
+      video_paint_string("  |", font6x8, (x + (18 * i)), (y + 16), fg, bg);
       break;
     }
     
-    digit = ones_digit;
+    if (i == 0)
+    {
+      digit = tens_digit;
+    }
+    else if (i == 1)
+    {
+      digit = ones_digit;
+    }
   }
 }
 
