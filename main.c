@@ -67,14 +67,6 @@ typedef struct {
   bool hit;
 } brick_t;
 
-enum  uint8_t {
-  level_1,
-  level_2,
-  level_3,
-  level_4,
-  level_5,
-  level_6
-  };
 
 //-----------------------------------------------------------------------------
 //                __          __        ___  __
@@ -82,6 +74,15 @@ enum  uint8_t {
 //      \/  /~~\ |  \ | /~~\ |__) |___ |___ .__/
 //
 //-----------------------------------------------------------------------------
+
+enum uint8_t {
+  level_1,
+  level_2,
+  level_3,
+  level_4,
+  level_5,
+  level_6
+  };
 
 static volatile uint32_t millis;
 static const uint16_t ROW_COLORS[6] = {0x1d60, 0x93BB, 0x70E6, 0x4639, 0xCD28,
@@ -134,7 +135,7 @@ int main(void)
   uint8_t num_lives = 5;
   uint8_t current_level = level_1;
   
-  bool game_over
+  bool game_over = false;
   
   brick_t bricks[(BRICKS_IN_ROW * NUM_ROWS)];
 
@@ -190,6 +191,21 @@ int main(void)
   
   while (1)
   {
+    
+    //If it's game over, then reset the game to it's initial state
+    if (game_over)
+    {
+      game_over = false;
+      current_score = 0;
+      current_level = level_1;
+      num_lives = 5;
+      display_score(num_lives, 25, 0, 0xffff, 0, true);
+      display_score(current_score, 104, 0, 0xffff, 0, false);
+      
+      init_bricks(bricks);
+      paint_bricks(bricks);
+    }
+    
     if (millis > 16)
     {
       __disable_irq();
@@ -291,7 +307,7 @@ int main(void)
         //if the player is out of lives, then it's game over
         if (num_lives == 0)
         {
-          
+          game_over = true;
         }
         //otherwise, decrease the total amount of lives and update the display
         else
