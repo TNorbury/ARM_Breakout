@@ -9,8 +9,12 @@
 #include "joystick.h"
 #include "spi.h"
 #include "video.h"
+#include "font.h"
 
 #include <stdbool.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <strings.h>
 
 //-----------------------------------------------------------------------------
 //      __   ___  ___         ___  __
@@ -91,7 +95,7 @@ bool check_brick_collision(brick_t* bricks, uint8_t ball_x, uint8_t ball_y,
   uint8_t* new_x, uint8_t* new_y, int8_t* hort_dir, int8_t* vert_dir, 
   int8_t hort_speed, int8_t vert_speed);
 void display_score(uint8_t score, uint8_t x, uint8_t y, uint16_t fg,
-  uint16_t bg)
+  uint16_t bg);
 
 
 
@@ -109,7 +113,6 @@ int main(void)
   uint8_t new_x, new_y;
   int8_t ball_hort_dir, ball_vert_dir;
   int8_t ball_hort_speed, ball_vert_speed;
-  uint8_t paddle_center;
   uint8_t ball_speed = 1;
   
   uint8_t paddle_x = 100;
@@ -127,11 +130,17 @@ int main(void)
   video_init();
 
   SysTick_Config(48000); //  Configure the SysTick timer for a ms
+  
+  font6x8 = font_get(FONT_6x8);
+  font8x8 = font_get(FONT_8x8);
+  font8x12 = font_get(FONT_8x12);
+  font12x16 = font_get(FONT_12x16);
 
   //Create a black screen with a white border on the left, right, and top
   video_paint_rect(0, 0, 176, 220, 0xffff);
   video_paint_rect(10, 10, 156, 210, 0);
 
+  video_paint_string("hello", font8x8, 10, 10, 0xffff, 0);
   ball_x = PADDLE_CENTER;
   ball_y = paddle_y - BALL_SIZE - 1;
 
@@ -149,6 +158,8 @@ int main(void)
   //Initialize the bricks
   init_bricks(bricks);
   paint_bricks(bricks);
+
+  display_score(100, 10, 10, 0xffff, 0);
   
   while (1)
   {
@@ -160,8 +171,6 @@ int main(void)
 
       new_y = ball_y + (ball_vert_dir * ball_vert_speed);
       new_x = ball_x + (ball_hort_dir * ball_hort_speed);
-      
-      
       
       //////////////////////////////////////////////////////////////////////////
       ///////////////////  Check if the ball will hit a brick  /////////////////
@@ -456,61 +465,61 @@ uint16_t bg)
     switch (digit)
     {
       case 0:
-      video_paint_string(" _ ", font12x16, (x + (36 * i)), y, fg, bg);
-      video_paint_string("| |", font12x16, (x + (36 * i)), (y + 16), fg, bg);
-      video_paint_string("|_|", font12x16, (x + (36 * i)), (y + 32), fg, bg);
+      video_paint_string(" _ ", font8x8, (x + (36 * i)), y, fg, bg);
+      video_paint_string("| |", font8x8, (x + (36 * i)), (y + 16), fg, bg);
+      video_paint_string("|_|", font8x8, (x + (36 * i)), (y + 32), fg, bg);
       break;
       
       case 1:
-      video_paint_string("  |", font12x16, (x + (36 * i)), (y + 16), fg, bg);
-      video_paint_string("  |", font12x16, (x + (36 * i)), (y + 32), fg, bg);
+      video_paint_string("  |", font8x8, (x + (36 * i)), (y + 16), fg, bg);
+      video_paint_string("  |", font8x8, (x + (36 * i)), (y + 32), fg, bg);
       break;
       
       case 2:
-      video_paint_string(" _ ", font12x16, (x + (36 * i)), y, fg, bg);
-      video_paint_string(" _|", font12x16, (x + (36 * i)), (y + 16), fg, bg);
-      video_paint_string("|_ ", font12x16, (x + (36 * i)), (y + 32), fg, bg);
+      video_paint_string(" _ ", font8x8, (x + (36 * i)), y, fg, bg);
+      video_paint_string(" _|", font8x8, (x + (36 * i)), (y + 16), fg, bg);
+      video_paint_string("|_ ", font8x8, (x + (36 * i)), (y + 32), fg, bg);
       break;
       
       case 3:
-      video_paint_string(" _ ", font12x16, (x + (36 * i)), y, fg, bg);
-      video_paint_string(" _|", font12x16, (x + (36 * i)), (y + 16), fg, bg);
-      video_paint_string(" _|", font12x16, (x + (36 * i)), (y + 32), fg, bg);
+      video_paint_string(" _ ", font8x8, (x + (36 * i)), y, fg, bg);
+      video_paint_string(" _|", font8x8, (x + (36 * i)), (y + 16), fg, bg);
+      video_paint_string(" _|", font8x8, (x + (36 * i)), (y + 32), fg, bg);
       break;
       
       case 4:
-      video_paint_string("|_|", font12x16, (x + (36 * i)), (y + 16), fg, bg);
-      video_paint_string("  |", font12x16, (x + (36 * i)), (y + 32), fg, bg);
+      video_paint_string("|_|", font8x8, (x + (36 * i)), (y + 16), fg, bg);
+      video_paint_string("  |", font8x8, (x + (36 * i)), (y + 32), fg, bg);
       break;
       
       case 5:
-      video_paint_string(" _ ", font12x16, (x + (36 * i)), y, fg, bg);
-      video_paint_string("|_ ", font12x16, (x + (36 * i)), (y + 16), fg, bg);
-      video_paint_string(" _|", font12x16, (x + (36 * i)), (y + 32), fg, bg);
+      video_paint_string(" _ ", font8x8, (x + (36 * i)), y, fg, bg);
+      video_paint_string("|_ ", font8x8, (x + (36 * i)), (y + 16), fg, bg);
+      video_paint_string(" _|", font8x8, (x + (36 * i)), (y + 32), fg, bg);
       break;
       
       case 6:
-      video_paint_string(" _ ", font12x16, (x + (36 * i)), y, fg, bg);
-      video_paint_string("|_ ", font12x16, (x + (36 * i)), (y + 16), fg, bg);
-      video_paint_string("|_|", font12x16, (x + (36 * i)), (y + 32), fg, bg);
+      video_paint_string(" _ ", font8x8, (x + (36 * i)), y, fg, bg);
+      video_paint_string("|_ ", font8x8, (x + (36 * i)), (y + 16), fg, bg);
+      video_paint_string("|_|", font8x8, (x + (36 * i)), (y + 32), fg, bg);
       break;
       
       case 7:
-      video_paint_string(" _ ", font12x16, (x + (36 * i)), y, fg, bg);
-      video_paint_string("  |", font12x16, (x + (36 * i)), (y + 16), fg, bg);
-      video_paint_string("  |", font12x16, (x + (36 * i)), (y + 32), fg, bg);
+      video_paint_string(" _ ", font8x8, (x + (36 * i)), y, fg, bg);
+      video_paint_string("  |", font8x8, (x + (36 * i)), (y + 16), fg, bg);
+      video_paint_string("  |", font8x8, (x + (36 * i)), (y + 32), fg, bg);
       break;
       
       case 8:
-      video_paint_string(" _ ", font12x16, (x + (36 * i)), y, fg, bg);
-      video_paint_string("|_|", font12x16, (x + (36 * i)), (y + 16), fg, bg);
-      video_paint_string("|_|", font12x16, (x + (36 * i)), (y + 32), fg, bg);
+      video_paint_string(" _ ", font8x8, (x + (36 * i)), y, fg, bg);
+      video_paint_string("|_|", font8x8, (x + (36 * i)), (y + 16), fg, bg);
+      video_paint_string("|_|", font8x8, (x + (36 * i)), (y + 32), fg, bg);
       break;
       
       case 9:
-      video_paint_string(" _ ", font12x16, (x + (36 * i)), y, fg, bg);
-      video_paint_string("|_|", font12x16, (x + (36 * i)), (y + 16), fg, bg);
-      video_paint_string("  |", font12x16, (x + (36 * i)), (y + 32), fg, bg);
+      video_paint_string(" _ ", font8x8, (x + (36 * i)), y, fg, bg);
+      video_paint_string("|_|", font8x8, (x + (36 * i)), (y + 16), fg, bg);
+      video_paint_string("  |", font8x8, (x + (36 * i)), (y + 32), fg, bg);
       break;
     }
     

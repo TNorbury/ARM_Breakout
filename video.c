@@ -210,9 +210,10 @@ uint16_t color)
 	video_index(GRAM_DATA_WRITE);
 	chipsel_on();
 	write_to_spi(0x72);
-
+	
 	for (i = 0; i < width * height; i++)
 	{
+		//video_parameter(color);
 		write_to_spi(color >> 8);
 		write_to_spi(color & 0xFF);
 	}
@@ -222,7 +223,7 @@ uint16_t color)
 }
 
 //==============================================================================
-void video_paint_string(uint8_t* string, font_t* font, uint8_t x, uint8_t y,
+void video_paint_string(char* string, font_t* font, uint8_t x, uint8_t y,
  uint16_t fg, uint16_t bg)
 {
 	uint16_t i;

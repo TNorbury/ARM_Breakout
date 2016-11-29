@@ -42,9 +42,9 @@
 
 void video_init();
 void video_set_window(uint8_t x, uint8_t y, uint8_t width, uint8_t height);
-void video_paint_rect(uint8_t x, uint8_t y, uint8_t width, uint8_t height, 
+void video_paint_rect(uint8_t x, uint8_t y, uint8_t width, uint8_t height,
 uint16_t color);
-void video_paint_string(uint8_t* string, font_t* font, uint8_t x, uint8_t y, 
+void video_paint_string(char* string, font_t* font, uint8_t x, uint8_t y,
 uint16_t fg, uint16_t bg);
 void video_on();
 void video_off();

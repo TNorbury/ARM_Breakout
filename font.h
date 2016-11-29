@@ -31,9 +31,9 @@
 
 typedef struct
 {
-	uint8_t width;
-	uint8_t height;
-	uint8_t *ptr;
+  uint8_t width;
+  uint8_t height;
+  uint8_t *ptr;
 } font_t;
 
 //------------------------------------------------------------------------------
