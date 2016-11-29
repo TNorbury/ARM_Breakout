@@ -201,6 +201,15 @@ int main(void)
       num_lives = 5;
       display_score(num_lives, 25, 0, 0xffff, 0, true);
       display_score(current_score, 104, 0, 0xffff, 0, false);
+      video_paint_rect(10, 44, 156, 210, 0);
+      
+      video_paint_string("GAME OVER!!!", font12x16, 17, 110, 0xffff, 0);
+      video_paint_string("Press any button", font6x8, 40, 126, 0x07FE, 0);
+      video_paint_string("to play again", font6x8, 45, 134, 0x07FE, 0);
+      
+      while (1)
+      {
+      }
       
       init_bricks(bricks);
       paint_bricks(bricks);
