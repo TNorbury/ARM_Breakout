@@ -105,7 +105,7 @@ bool check_brick_collision(brick_t* bricks, uint8_t ball_x, uint8_t ball_y,
   uint8_t* new_x, uint8_t* new_y, int8_t* hort_dir, int8_t* vert_dir, 
   int8_t hort_speed, int8_t vert_speed);
 void display_score(uint16_t score, uint8_t x, uint8_t y, uint16_t fg,
-  uint16_t bg);
+  uint16_t bg, bool is_lives);
 
 
 
@@ -133,6 +133,8 @@ int main(void)
   uint16_t high_score, current_score;
   uint8_t num_lives = 5;
   uint8_t current_level = level_1;
+  
+  bool game_over
   
   brick_t bricks[(BRICKS_IN_ROW * NUM_ROWS)];
 
@@ -176,11 +178,14 @@ int main(void)
   
   //Current Score
   current_score = 0;
-  display_score(current_score, 122, 0, 0xffff, 0);
+  display_score(current_score, 104, 0, 0xffff, 0, false);
   
   //High Score
   high_score = 0;
-  display_score(high_score, 0, 0, 0xffff, 0);
+  display_score(high_score, 0, 0, 0xffff, 0, false);
+  
+  //Current Lives
+  display_score(num_lives, 25, 0, 0xffff, 0, true);
   
   
   while (1)
@@ -204,18 +209,45 @@ int main(void)
         if (check_brick_collision(bricks, ball_x, ball_y, &new_x, &new_y,
         &ball_hort_dir, &ball_vert_dir, ball_hort_speed, ball_vert_speed))
         {
-          current_score++;
-          display_score(current_score, 122, 0, 0xffff, 0);
+          if (current_level == level_1 || current_level == level_2)
+          {
+            current_score++;
+          }
+          else if (current_level == level_3 || current_level == level_4)
+          {
+            current_score += 4;
+          }
+          else if (current_level == level_5 || current_level == level_6)
+          {
+            current_score += 7;
+          }
+          
+          display_score(current_score, 104, 0, 0xffff, 0, false);
           
           //If the new current score surpassed the high score, update it.
           if (current_score > high_score)
           {
             high_score = current_score;
-            display_score(high_score, 0, 0, 0xffff, 0);
+            display_score(high_score, 0, 0, 0xffff, 0, false);
           }
           
+          //If all bricks are eliminated, redraw all the bricks and advance the 
+          //level.
           if (brick_count == 0)
           {
+            if (current_level != level_6)
+            {
+              current_level ++;
+            }
+            else
+            {
+              current_level = 0;
+              
+              //Increase the ball's speed
+            }
+            
+            init_bricks(bricks);
+            paint_bricks(bricks);
           }
           
         }
@@ -256,6 +288,19 @@ int main(void)
       //Otherwise, if the ball will run into the bottom boundary
       else if ((new_y + BALL_SIZE) > BOTTOM_BOUNDARY)
       {
+        //if the player is out of lives, then it's game over
+        if (num_lives == 0)
+        {
+          
+        }
+        //otherwise, decrease the total amount of lives and update the display
+        else
+        {
+          num_lives --;
+          display_score(num_lives, 25, 0, 0xffff, 0, true);
+        }
+        
+        
         
         //Reset the ball to it's initial position, direction, and speed.
         new_x = PADDLE_CENTER;
@@ -490,20 +535,31 @@ int8_t hort_speed, int8_t vert_speed)
 
 //=============================================================================
 void display_score(uint16_t score, uint8_t x, uint8_t y, uint16_t fg,
-uint16_t bg)
+uint16_t bg, bool is_lives)
 {
-  uint8_t hundreds_digit, tens_digit, ones_digit, digit;
+  int i = 0;
+  uint8_t thousands_digit, hundreds_digit, tens_digit, ones_digit, digit;
   
   //Parse the tens and ones digit of the score
+  thousands_digit = score % 10000 / 1000;
   hundreds_digit = score % 1000 / 100;
   tens_digit = score % 100 / 10;
   ones_digit = score % 10 / 1;
   
-  //Print the 10s digit, and then the 1s digit
-  digit = hundreds_digit;
-  for (int i = 0; i < 3; i ++)
+  //If displaying the number of lives only print the 1s digit
+  if (is_lives)
   {
-   // font12x16
+    i = 3;
+    digit = ones_digit;
+  }
+  else
+  {
+    digit = thousands_digit;
+  }
+  
+  for (; i < 4; i ++)
+  {
+    
     switch (digit)
     {
       case 0:
@@ -569,9 +625,13 @@ uint16_t bg)
     
     if (i == 0)
     {
-      digit = tens_digit;
+      digit = hundreds_digit;
     }
     else if (i == 1)
+    {
+      digit = tens_digit;
+    }
+    else if (i == 2)
     {
       digit = ones_digit;
     }
