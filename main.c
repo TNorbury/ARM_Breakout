@@ -47,7 +47,7 @@
 #define BRICKS_IN_ROW (156 / BRICK_WIDTH)
 #define NUM_ROWS (6)
 
-#define BRICK_BOTTOM_BOUNDARY (90)
+#define BRICK_BOTTOM_BOUNDARY (100)
 
 //-----------------------------------------------------------------------------
 //     ___      __   ___  __   ___  ___  __
@@ -73,6 +73,10 @@ typedef struct {
 static volatile uint32_t millis;
 static const uint16_t ROW_COLORS[6] = {0x1d60, 0x93BB, 0x70E6, 0x4639, 0xCD28,
 0x4B4E};
+static font_t* font6x8;
+static font_t* font8x8;
+static font_t* font8x12;
+static font_t* font12x16;
 
 //-----------------------------------------------------------------------------
 //      __   __   __  ___  __  ___      __   ___  __
@@ -83,8 +87,11 @@ static const uint16_t ROW_COLORS[6] = {0x1d60, 0x93BB, 0x70E6, 0x4639, 0xCD28,
 
 void init_bricks(brick_t* bricks);
 void paint_bricks(brick_t* bricks);
-bool check_brick_collision(brick_t* bricks, uint8_t ball_x, uint8_t ball_y, uint8_t* new_x, uint8_t* new_y,
-int8_t* hort_dir, int8_t* vert_dir, int8_t hort_speed, int8_t vert_speed);
+bool check_brick_collision(brick_t* bricks, uint8_t ball_x, uint8_t ball_y, 
+  uint8_t* new_x, uint8_t* new_y, int8_t* hort_dir, int8_t* vert_dir, 
+  int8_t hort_speed, int8_t vert_speed);
+void display_score(uint8_t score, uint8_t x, uint8_t y, uint16_t fg,
+  uint16_t bg)
 
 
 
@@ -430,6 +437,85 @@ int8_t hort_speed, int8_t vert_speed)
   }
   
   return brick_hit;
+}
+
+//=============================================================================
+void display_score(uint8_t score, uint8_t x, uint8_t y, uint16_t fg,
+uint16_t bg)
+{
+  uint8_t tens_digit, ones_digit, digit;
+  
+  //Parse the tens and ones digit of the score
+  tens_digit = score % 100 / 10;
+  ones_digit = score % 10 / 1;
+  
+  //Print the 10s digit, and then the 1s digit
+  digit = tens_digit;
+  for (int i = 0; i < 2; i ++)
+  {
+    switch (digit)
+    {
+      case 0:
+      video_paint_string(" _ ", font12x16, (x + (36 * i)), y, fg, bg);
+      video_paint_string("| |", font12x16, (x + (36 * i)), (y + 16), fg, bg);
+      video_paint_string("|_|", font12x16, (x + (36 * i)), (y + 32), fg, bg);
+      break;
+      
+      case 1:
+      video_paint_string("  |", font12x16, (x + (36 * i)), (y + 16), fg, bg);
+      video_paint_string("  |", font12x16, (x + (36 * i)), (y + 32), fg, bg);
+      break;
+      
+      case 2:
+      video_paint_string(" _ ", font12x16, (x + (36 * i)), y, fg, bg);
+      video_paint_string(" _|", font12x16, (x + (36 * i)), (y + 16), fg, bg);
+      video_paint_string("|_ ", font12x16, (x + (36 * i)), (y + 32), fg, bg);
+      break;
+      
+      case 3:
+      video_paint_string(" _ ", font12x16, (x + (36 * i)), y, fg, bg);
+      video_paint_string(" _|", font12x16, (x + (36 * i)), (y + 16), fg, bg);
+      video_paint_string(" _|", font12x16, (x + (36 * i)), (y + 32), fg, bg);
+      break;
+      
+      case 4:
+      video_paint_string("|_|", font12x16, (x + (36 * i)), (y + 16), fg, bg);
+      video_paint_string("  |", font12x16, (x + (36 * i)), (y + 32), fg, bg);
+      break;
+      
+      case 5:
+      video_paint_string(" _ ", font12x16, (x + (36 * i)), y, fg, bg);
+      video_paint_string("|_ ", font12x16, (x + (36 * i)), (y + 16), fg, bg);
+      video_paint_string(" _|", font12x16, (x + (36 * i)), (y + 32), fg, bg);
+      break;
+      
+      case 6:
+      video_paint_string(" _ ", font12x16, (x + (36 * i)), y, fg, bg);
+      video_paint_string("|_ ", font12x16, (x + (36 * i)), (y + 16), fg, bg);
+      video_paint_string("|_|", font12x16, (x + (36 * i)), (y + 32), fg, bg);
+      break;
+      
+      case 7:
+      video_paint_string(" _ ", font12x16, (x + (36 * i)), y, fg, bg);
+      video_paint_string("  |", font12x16, (x + (36 * i)), (y + 16), fg, bg);
+      video_paint_string("  |", font12x16, (x + (36 * i)), (y + 32), fg, bg);
+      break;
+      
+      case 8:
+      video_paint_string(" _ ", font12x16, (x + (36 * i)), y, fg, bg);
+      video_paint_string("|_|", font12x16, (x + (36 * i)), (y + 16), fg, bg);
+      video_paint_string("|_|", font12x16, (x + (36 * i)), (y + 32), fg, bg);
+      break;
+      
+      case 9:
+      video_paint_string(" _ ", font12x16, (x + (36 * i)), y, fg, bg);
+      video_paint_string("|_|", font12x16, (x + (36 * i)), (y + 16), fg, bg);
+      video_paint_string("  |", font12x16, (x + (36 * i)), (y + 32), fg, bg);
+      break;
+    }
+    
+    digit = ones_digit;
+  }
 }
 
 //-----------------------------------------------------------------------------

@@ -222,94 +222,94 @@ uint16_t color)
 }
 
 //==============================================================================
-//void video_paint_string(uint8_t* string, font_t* font, uint8_t x, uint8_t y,
- //uint16_t fg, uint16_t bg)
-//{
-	//uint16_t i;
-	//uint16_t string_width;
-	//uint8_t character;
-	//uint8_t byte_size = 8;
-  //uint8_t row_height;
-	//uint8_t char_row;
-//
-  //if (font->height == 16)
-  //{
-    //row_height = font->height * 2;
-  //}
-  //else
-  //{
-    //row_height = font->height;
-  //}
-//
-	//video_set_window(x,y, strlen(string) * font->width , font->height);
-	//video(GRAM_ADDRESS_SET_X, x + 0x0020);
-	//video(GRAM_ADDRESS_SET_Y, y);
-	//video_index(GRAM_DATA_WRITE);
-	//chipsel_on();
-	//write_to_spi(0x72);
-//
-	//for (i = 0; i < font->height; i++)
-	//{
-		//for (int j = 0; j < strlen(string); j++)
-		//{
-			//character = string[j] - 32;
-//
-      //if (font->height == 16)
-      //{
-        //char_row = font->ptr[(character * row_height) + (i * 2)];
-        ////byte_size = 8;
-      //}
-      //else if (font->width == 6)
-      //{
-        //byte_size = font->width;
-        //char_row = font->ptr[(character * row_height) + i];
-      //}
-      //else
-      //{
-        //char_row = font->ptr[(character * row_height) + i];        
-      //}
-      //
-			//for (int k = 0; k < byte_size; k++)
-			//{
-				//if (((char_row & 0x80) >> 7) == 1)
-				//{
-						//write_to_spi(fg >> 8);
-						//write_to_spi(fg & 0xFF);
-				//}
-				//else
-				//{
-						//write_to_spi(bg >> 8);
-						//write_to_spi(bg & 0xFF);
-				//}
-				//char_row = char_row << 1;
-			//}
-      //
-      //if (font->height == 16)
-      //{
-        //char_row = font->ptr[(character * row_height) + (i * 2) + 1];
-        //
-        //for (int k = 0; k < 4; k++)
-        //{
-          //if (((char_row & 0x80) >> 7) == 1)
-          //{
-            //write_to_spi(fg >> 8);
-            //write_to_spi(fg & 0xFF);
-          //}
-          //else
-          //{
-            //write_to_spi(bg >> 8);
-            //write_to_spi(bg & 0xFF);
-          //}
-          //char_row = char_row << 1;
-        //}
-			//}
-		//}
-	//}
-//
-	//chipsel_off();
-	//
-	//video(NO_OP, 0x0000);
-//}
+void video_paint_string(uint8_t* string, font_t* font, uint8_t x, uint8_t y,
+ uint16_t fg, uint16_t bg)
+{
+	uint16_t i;
+	uint16_t string_width;
+	uint8_t character;
+	uint8_t byte_size = 8;
+  uint8_t row_height;
+	uint8_t char_row;
+
+  if (font->height == 16)
+  {
+    row_height = font->height * 2;
+  }
+  else
+  {
+    row_height = font->height;
+  }
+
+	video_set_window(x,y, strlen(string) * font->width , font->height);
+	video(GRAM_ADDRESS_SET_X, x + 0x0020);
+	video(GRAM_ADDRESS_SET_Y, y);
+	video_index(GRAM_DATA_WRITE);
+	chipsel_on();
+	write_to_spi(0x72);
+
+	for (i = 0; i < font->height; i++)
+	{
+		for (int j = 0; j < strlen(string); j++)
+		{
+			character = string[j] - 32;
+
+      if (font->height == 16)
+      {
+        char_row = font->ptr[(character * row_height) + (i * 2)];
+        //byte_size = 8;
+      }
+      else if (font->width == 6)
+      {
+        byte_size = font->width;
+        char_row = font->ptr[(character * row_height) + i];
+      }
+      else
+      {
+        char_row = font->ptr[(character * row_height) + i];        
+      }
+      
+			for (int k = 0; k < byte_size; k++)
+			{
+				if (((char_row & 0x80) >> 7) == 1)
+				{
+						write_to_spi(fg >> 8);
+						write_to_spi(fg & 0xFF);
+				}
+				else
+				{
+						write_to_spi(bg >> 8);
+						write_to_spi(bg & 0xFF);
+				}
+				char_row = char_row << 1;
+			}
+      
+      if (font->height == 16)
+      {
+        char_row = font->ptr[(character * row_height) + (i * 2) + 1];
+        
+        for (int k = 0; k < 4; k++)
+        {
+          if (((char_row & 0x80) >> 7) == 1)
+          {
+            write_to_spi(fg >> 8);
+            write_to_spi(fg & 0xFF);
+          }
+          else
+          {
+            write_to_spi(bg >> 8);
+            write_to_spi(bg & 0xFF);
+          }
+          char_row = char_row << 1;
+        }
+			}
+		}
+	}
+
+	chipsel_off();
+	
+	video(NO_OP, 0x0000);
+}
 
 
 //------------------------------------------------------------------------------
