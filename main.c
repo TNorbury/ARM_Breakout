@@ -91,6 +91,7 @@ enum uint8_t {
 };
 
 static volatile uint32_t millis;
+static volatile uint32_t demo_timer;
 static const uint16_t ROW_COLORS[6] = {0x1d60, 0x93BB, 0x70E6, 0x4639, 0xCD28,
 0x4B4E};
 static font_t* font6x8;
@@ -113,7 +114,8 @@ uint8_t* new_x, uint8_t* new_y, int8_t* hort_dir, int8_t* vert_dir,
 int8_t hort_speed, int8_t vert_speed);
 void display_score(uint16_t score, uint8_t x, uint8_t y, uint16_t fg,
 uint16_t bg, bool is_lives);
-
+void reset_demo_timer();
+void wait_for_button_release();
 
 
 //-----------------------------------------------------------------------------
@@ -122,6 +124,9 @@ uint16_t bg, bool is_lives);
 //     |    \__/ |__) |___ | \__,
 //
 //-----------------------------------------------------------------------------
+
+
+
 
 //=============================================================================
 int main(void)
@@ -210,15 +215,64 @@ int main(void)
       
       video_paint_string("GAME OVER!!!", font12x16, 17, 110, 0xffff, 0);
       video_paint_string("Press any button", font6x8, 40, 126, 0x07FE, 0);
-      video_paint_string("to play again", font6x8, 45, 134, 0x07FE, 0);
+      video_paint_string("to return to the", font6x8, 41, 134, 0x07FE, 0);
+      video_paint_string("start menu", font6x8, 41, 142, 0x07FE, 0);
+      
       
       //Wait for a button to be pressed before playing again.
       while (buttons_get() == NO_BUTTON)
       {
       }
+      
+      wait_for_button_release();
 
+
+      game_mode = NO_GAME;
       init_game = true;
       
+      reset_demo_timer();
+    }
+    
+    if (game_mode == NO_GAME)
+    {
+      video_paint_string("BREAKOUT", font12x16, 40, 126, 0xffff, 0);
+      video_paint_string("Press PB3 for limited", font6x8, 15, 142, 0x07FE, 0);
+      video_paint_string("Press PB1 for unlimited", font6x8, 15, 150, 0x07FE, 0);
+      
+      
+      if (buttons_get() == PB_3)
+      {
+        //Wait for the button to be released
+        wait_for_button_release();
+        
+        start_screen = false;
+        init_game = true;
+        game_mode = LIMIT_MODE;
+      }
+      
+      if (demo_timer > 5000)
+      {
+        start_screen = false;
+        init_game = true;
+        game_mode = DEMO_MODE;
+        
+        //Reset the ball to it's initial position, direction, and speed.
+        new_x = PADDLE_CENTER;
+        new_y = paddle_y - BALL_SIZE - 1;
+        
+        ball_hort_dir = BALL_LEFT;
+        ball_vert_dir = BALL_UP;
+        
+        ball_hort_speed = ball_speed;
+        ball_vert_speed = 1;
+        
+        
+        video_paint_rect(ball_x, ball_y, BALL_SIZE, BALL_SIZE, 0);
+        video_paint_rect(new_x, new_y, BALL_SIZE, BALL_SIZE, BALL_COLOR);
+        
+        ball_x = new_x;
+        ball_y = new_y;
+      }
     }
     
     if (init_game)
@@ -245,24 +299,6 @@ int main(void)
       ball_vert_speed = 1;
     }
     
-    if (start_screen)
-    {
-      video_paint_string("BREAKOUT", font12x16, 40, 126, 0xffff, 0);
-      video_paint_string("Press PB3 for limited", font6x8, 15, 142, 0x07FE, 0);
-      video_paint_string("Press PB1 for unlimited", font6x8, 15, 150, 0x07FE, 0);
-      
-      if (buttons_get() == PB_3)
-      {
-        //Wait for the button to be released
-        while (buttons_get() != NO_BUTTON)
-        {
-        }
-        start_screen = false;
-        init_game = true;
-        game_mode = DEMO_MODE;
-      }
-    }
-    
     if (millis > 16)
     {
       __disable_irq();
@@ -279,254 +315,280 @@ int main(void)
         
         if (buttons_get() != NO_BUTTON)
         {
+          wait_for_button_release();
+          
           start_screen = true;
           init_game = true;
           game_mode = NO_GAME;
+          
+          //Reset the demo timer
+          reset_demo_timer();
+
         }
       }
       
       if (game_mode != NO_GAME)
       {
-	      new_y = ball_y + (ball_vert_dir * ball_vert_speed);
-	      new_x = ball_x + (ball_hort_dir * ball_hort_speed);
-	      
-	      //////////////////////////////////////////////////////////////////////////
-	      ///////////////////  Check if the ball will hit a brick  /////////////////
-	      //////////////////////////////////////////////////////////////////////////
-	      if (new_y < BRICK_BOTTOM_BOUNDARY)
-	      {
-	        
-	        //If any bricks were hit, increment the score and redraw the display
-	        if (check_brick_collision(bricks, ball_x, ball_y, &new_x, &new_y,
-	        &ball_hort_dir, &ball_vert_dir, ball_hort_speed, ball_vert_speed))
-	        {
-	          if (current_level == level_1 || current_level == level_2)
-	          {
-	            current_score++;
-	          }
-	          else if (current_level == level_3 || current_level == level_4)
-	          {
-	            current_score += 4;
-	          }
-	          else if (current_level == level_5 || current_level == level_6)
-	          {
-	            current_score += 7;
-	          }
-	          
-	          display_score(current_score, 104, 0, 0xffff, 0, false);
-	          
-	          //If the new current score surpassed the high score, update it.
-	          if (current_score > high_score)
-	          {
-	            high_score = current_score;
-	            display_score(high_score, 0, 0, 0xffff, 0, false);
-	          }
-	          
-	          //If all bricks are eliminated, redraw all the bricks and advance the
-	          //level.
-	          if (brick_count == 0)
-	          {
-	            if (current_level != level_6)
-	            {
-	              current_level ++;
-	            }
-	            else
-	            {
-	              current_level = 0;
-	              
-	              //Increase the ball's speed
-	            }
-	            
-	            init_bricks(bricks);
-	            paint_bricks(bricks);
-	            
-	            //Reset the ball to it's initial position, direction, and speed.
-	            new_x = PADDLE_CENTER;
-	            new_y = paddle_y - BALL_SIZE - 1;
-	
-	            ball_hort_dir = BALL_LEFT;
-	            ball_vert_dir = BALL_UP;
-	            
-	            ball_hort_speed = ball_speed;
-	            ball_vert_speed = 1;
-	          }
-	          
-	        }
-	      }
-	
-	      //if the ball will run into a boundary then calculate the difference
-	      //between the ball and the boundary and then offset the ball by that much
-	
-	      //if the ball will run into the left boundary
-	      if (new_x < LEFT_BOUNDARY)
-	      {
-	        ball_hort_dir = BALL_RIGHT;
-	
-	        new_x = LEFT_BOUNDARY + ((ball_hort_dir * ball_hort_speed)
-	        - (ball_x - LEFT_BOUNDARY));
-	      }
-	
-	      //Otherwise if the ball will run into the right boundary.
-	      else if ((new_x + BALL_SIZE) > RIGHT_BOUNDARY)
-	      {
-	        ball_hort_dir = BALL_LEFT;
-	
-	        new_x = RIGHT_BOUNDARY + ((ball_hort_dir * ball_hort_speed)
-	        - (RIGHT_BOUNDARY - ball_x));
-	      }
-	
-	
-	      //If the ball will run into the TOP boundary
-	      if (new_y < TOP_BOUNDARY)
-	      {
-	        ball_vert_dir = BALL_DOWN;
-	
-	        new_y = TOP_BOUNDARY + ((ball_vert_dir * ball_vert_speed)
-	        - (ball_y - TOP_BOUNDARY));
-	      }
-	
-	      //Otherwise, if the ball will run into the bottom boundary
-	      else if ((new_y + BALL_SIZE) > BOTTOM_BOUNDARY)
-	      {
-	        //if the player is out of lives, then it's game over
-	        if (num_lives == 0)
-	        {
-	          game_over = true;
-	        }
-	        //otherwise, decrease the total amount of lives and update the display
-	        else
-	        {
-	          num_lives --;
-	          display_score(num_lives, 25, 0, 0xffff, 0, true);
-	        }
-	        
-	        //Reset the ball to it's initial position, direction, and speed.
-	        new_x = PADDLE_CENTER;
-	        new_y = paddle_y - BALL_SIZE - 1;
-	
-	        ball_hort_dir = BALL_LEFT;
-	        ball_vert_dir = BALL_UP;
-	        
-	        ball_hort_speed = ball_speed;
-	        ball_vert_speed = 1;
-	      }
-	      
-	      
-	      //////////////////////////////////////////////////////////////////////////
-	      ///////////////////  Bounce the ball off of the paddle  //////////////////
-	      //////////////////////////////////////////////////////////////////////////
-	      
-	      //If the ball will run into the paddle, bounce it off the paddle.
-	      if (((new_x >= paddle_x - 5) && (new_x <= paddle_x + PADDLE_LENGTH))
-	      && ((new_y >= paddle_y) && (new_y <= paddle_y + PADDLE_HEIGHT)))
-	      {
-	        //Bounce the ball upwards
-	        ball_vert_dir = BALL_UP;
-	        
-	        //Calculate how far away from the center the ball is and use that to
-	        //determine the angle at which is bounces.
-	        if (ball_x >= PADDLE_CENTER)
-	        {
-	          ball_vert_speed = (SPEED_MAX + SPEED_MIN) - ((((SPEED_MAX - SPEED_MIN)
-	          * (ball_x - PADDLE_CENTER)) / ((paddle_x + PADDLE_LENGTH)
-	          - PADDLE_CENTER)) + SPEED_MIN);
-	        }
-	        else
-	        {
-	          ball_vert_speed = (((SPEED_MAX - SPEED_MIN) * (ball_x - paddle_x))
-	          / (PADDLE_CENTER - paddle_x)) + SPEED_MIN;
-	        }
-	        
-	        //Calculate how far up the ball needs to bounce
-	        new_y = paddle_y + ((ball_vert_dir * ball_vert_speed)
-	        - (paddle_y - new_y));
-	      }
-	
-	      //Move the ball based on its speed. Paint it's old position black and then
-	      // paint it at its new position
-	      video_paint_rect(ball_x, ball_y, BALL_SIZE, BALL_SIZE, 0);
-	      video_paint_rect(new_x, new_y, BALL_SIZE, BALL_SIZE, BALL_COLOR);
-	
-	      ball_x = new_x;
-	      ball_y = new_y;
-	      
-	      //////////////////////////////////////////////////////////////////////////
-	      ///////////////////  Move the paddle side to side  ///////////////////////
-	      //////////////////////////////////////////////////////////////////////////
-	      
-	      //if not in demo mode, the joystick will control the movement of the
-	      //paddle.
-	      if (game_mode != DEMO_MODE)
-	      {
-	        //Read the joystick position on the x-axis
-	        joy_x = joystick_get_X_Value();
-	        
-	        //If the joystick is to the left of the center, move the paddle left.
-	        if (joy_x < (JOYSTICK_CENTER))
-	        {
-	          new_x = paddle_x + PADDLE_SPEED;
-	        }
-	        
-	        //If the joystick is to the right of the center, move the paddle right.
-	        else if (joy_x > (JOYSTICK_CENTER + 150))
-	        {
-	          new_x = paddle_x - PADDLE_SPEED;
-	        }
-	        
-	        //Otherwise, if the joystick is in the dead zone, then don't move the
-	        //paddle
-	        else
-	        {
-	          new_x = paddle_x;
-	        }
-	      }
-	      
-	      //Otherwise, if in demo mode, have the paddle follow the ball
-	      else
-	      {
-	        
-	        //if the ball is to the right of the paddle, move the paddle to the right.
-	        if (ball_x > paddle_x + PADDLE_LENGTH)
-	        {
-	          new_x = paddle_x + PADDLE_SPEED;
-	        }
-	        
-	        //Otherwise, if the ball is to the left, move the paddle to the left.
-	        else if (ball_x < paddle_x)
-	        {
-	          new_x = paddle_x - PADDLE_SPEED;
-	        }
-	        
-	        //Otherwise, don't move the paddle.
-	        else
-	        {
-	          new_x = paddle_x;
-	        }
-	      }
-	      
-	      //Check to make sure that the paddle doesn't go off the end of the screen.
-	      //Check the left boundary
-	      if (new_x < LEFT_BOUNDARY)
-	      {
-	        //If the paddle would move past the left boundary, then just set it to
-	        //the edge.
-	        new_x = LEFT_BOUNDARY;
-	      }
-	      
-	      //Check the right boundary
-	      else if ((new_x + PADDLE_LENGTH) > RIGHT_BOUNDARY)
-	      {
-	        //If the paddle would move past the right boundary, then just set it to
-	        //the edge.
-	        new_x = (RIGHT_BOUNDARY - PADDLE_LENGTH);
-	      }
-	      
-	      //Redraw the paddle and update its position.
-	      video_paint_rect(paddle_x, paddle_y, PADDLE_LENGTH, PADDLE_HEIGHT, 0);
-	      video_paint_rect(new_x, paddle_y, PADDLE_LENGTH, PADDLE_HEIGHT,
-	      PADDLE_COLOR);
-	      
-	      paddle_x = new_x;
+        new_y = ball_y + (ball_vert_dir * ball_vert_speed);
+        new_x = ball_x + (ball_hort_dir * ball_hort_speed);
+        
+        //////////////////////////////////////////////////////////////////////////
+        ///////////////////  Check if the ball will hit a brick  /////////////////
+        //////////////////////////////////////////////////////////////////////////
+        if (new_y < BRICK_BOTTOM_BOUNDARY)
+        {
+          
+          //If any bricks were hit, increment the score and redraw the display
+          if (check_brick_collision(bricks, ball_x, ball_y, &new_x, &new_y,
+          &ball_hort_dir, &ball_vert_dir, ball_hort_speed, ball_vert_speed))
+          {
+            if (current_level == level_1 || current_level == level_2)
+            {
+              current_score++;
+            }
+            else if (current_level == level_3 || current_level == level_4)
+            {
+              current_score += 4;
+            }
+            else if (current_level == level_5 || current_level == level_6)
+            {
+              current_score += 7;
+            }
+            
+            //Re-seed the randomizer
+            srand(current_score);
+            
+            display_score(current_score, 104, 0, 0xffff, 0, false);
+            
+            //If the new current score surpassed the high score, update it.
+            if (current_score > high_score && game_mode != DEMO_MODE)
+            {
+              high_score = current_score;
+              display_score(high_score, 0, 0, 0xffff, 0, false);
+            }
+            
+            //If all bricks are eliminated, redraw all the bricks and advance the
+            //level.
+            if (brick_count == 0)
+            {
+              if (current_level != level_6)
+              {
+                current_level ++;
+              }
+              else
+              {
+                current_level = 0;
+                
+                //Increase the ball's speed
+                ball_speed += 1;
+              }
+              
+              //Reset the ball to it's initial position, direction, and speed.
+              new_x = PADDLE_CENTER;
+              new_y = paddle_y - BALL_SIZE - 1;
+              
+              ball_hort_dir = BALL_LEFT;
+              ball_vert_dir = BALL_UP;
+              
+              ball_hort_speed = ball_speed;
+              ball_vert_speed = 1;
+              
+              
+              video_paint_rect(ball_x, ball_y, BALL_SIZE, BALL_SIZE, 0);
+              video_paint_rect(new_x, new_y, BALL_SIZE, BALL_SIZE, BALL_COLOR);
+              
+              ball_x = new_x;
+              ball_y = new_y;
+              
+              init_bricks(bricks);
+              paint_bricks(bricks);
+            }
+            
+          }
+        }
+        
+        //if the ball will run into a boundary then calculate the difference
+        //between the ball and the boundary and then offset the ball by that much
+        
+        //if the ball will run into the left boundary
+        if (new_x < LEFT_BOUNDARY)
+        {
+          ball_hort_dir = BALL_RIGHT;
+          
+          new_x = LEFT_BOUNDARY + ((ball_hort_dir * ball_hort_speed)
+          - (ball_x - LEFT_BOUNDARY));
+        }
+        
+        //Otherwise if the ball will run into the right boundary.
+        else if ((new_x + BALL_SIZE) > RIGHT_BOUNDARY)
+        {
+          ball_hort_dir = BALL_LEFT;
+          
+          new_x = RIGHT_BOUNDARY + ((ball_hort_dir * ball_hort_speed)
+          - (RIGHT_BOUNDARY - ball_x));
+        }
+        
+        
+        //If the ball will run into the TOP boundary
+        if (new_y < TOP_BOUNDARY)
+        {
+          ball_vert_dir = BALL_DOWN;
+          
+          new_y = TOP_BOUNDARY + ((ball_vert_dir * ball_vert_speed)
+          - (ball_y - TOP_BOUNDARY));
+        }
+        
+        //Otherwise, if the ball will run into the bottom boundary
+        else if ((new_y + BALL_SIZE) > BOTTOM_BOUNDARY)
+        {
+          //if the player is out of lives, then it's game over
+          if (num_lives == 0)
+          {
+            game_over = true;
+          }
+          //otherwise, decrease the total amount of lives and update the display
+          else if (game_mode != DEMO_MODE)
+          {
+            num_lives --;
+            display_score(num_lives, 25, 0, 0xffff, 0, true);
+          }
+          
+          //Reset the ball to it's initial position, direction, and speed.
+          new_x = PADDLE_CENTER;
+          new_y = paddle_y - BALL_SIZE - 1;
+          
+          ball_hort_dir = BALL_LEFT;
+          ball_vert_dir = BALL_UP;
+          
+          ball_hort_speed = ball_speed;
+          ball_vert_speed = 1;
+        }
+        
+        
+        //////////////////////////////////////////////////////////////////////////
+        ///////////////////  Bounce the ball off of the paddle  //////////////////
+        //////////////////////////////////////////////////////////////////////////
+        
+        //If the ball will run into the paddle, bounce it off the paddle.
+        if (((new_x >= paddle_x - 5) && (new_x <= paddle_x + PADDLE_LENGTH))
+        && ((new_y >= paddle_y) && (new_y <= paddle_y + PADDLE_HEIGHT)))
+        {
+          //Bounce the ball upwards
+          ball_vert_dir = BALL_UP;
+          
+          //Calculate how far away from the center the ball is and use that to
+          //determine the angle at which is bounces.
+          if (ball_x >= PADDLE_CENTER)
+          {
+            ball_vert_speed = (SPEED_MAX + SPEED_MIN) - ((((SPEED_MAX - SPEED_MIN)
+            * (ball_x - PADDLE_CENTER)) / ((paddle_x + PADDLE_LENGTH)
+            - PADDLE_CENTER)) + SPEED_MIN);
+          }
+          else
+          {
+            ball_vert_speed = (((SPEED_MAX - SPEED_MIN) * (ball_x - paddle_x))
+            / (PADDLE_CENTER - paddle_x)) + SPEED_MIN;
+          }
+          
+          //Calculate how far up the ball needs to bounce
+          new_y = paddle_y + ((ball_vert_dir * ball_vert_speed)
+          - (paddle_y - new_y));
+        }
+        
+        //Move the ball based on its speed. Paint it's old position black and then
+        // paint it at its new position
+        video_paint_rect(ball_x, ball_y, BALL_SIZE, BALL_SIZE, 0);
+        video_paint_rect(new_x, new_y, BALL_SIZE, BALL_SIZE, BALL_COLOR);
+        
+        ball_x = new_x;
+        ball_y = new_y;
+        
+        //////////////////////////////////////////////////////////////////////////
+        ///////////////////  Move the paddle side to side  ///////////////////////
+        //////////////////////////////////////////////////////////////////////////
+        
+        //if not in demo mode, the joystick will control the movement of the
+        //paddle.
+        if (game_mode != DEMO_MODE)
+        {
+          //Read the joystick position on the x-axis
+          joy_x = joystick_get_X_Value();
+          
+          //If the joystick is to the left of the center, move the paddle left.
+          if (joy_x < (JOYSTICK_CENTER))
+          {
+            new_x = paddle_x + PADDLE_SPEED;
+          }
+          
+          //If the joystick is to the right of the center, move the paddle right.
+          else if (joy_x > (JOYSTICK_CENTER + 150))
+          {
+            new_x = paddle_x - PADDLE_SPEED;
+          }
+          
+          //Otherwise, if the joystick is in the dead zone, then don't move the
+          //paddle
+          else
+          {
+            new_x = paddle_x;
+          }
+        }
+        
+        //Otherwise, if in demo mode, have the paddle follow the ball
+        else
+        {
+          
+          //1 in 2 chance of the paddle not moving every frame.
+          if (rand()%2 == 1)
+          {
+            //if the ball is to the right of the paddle, move the paddle to the right.
+            if (ball_x > PADDLE_CENTER)
+            {
+              new_x = paddle_x + PADDLE_SPEED;
+            }
+            
+            //Otherwise, if the ball is to the left, move the paddle to the left.
+            else if (ball_x < PADDLE_CENTER)
+            {
+              new_x = paddle_x - PADDLE_SPEED;
+            }
+            
+            //Otherwise, don't move the paddle.
+            else
+            {
+              new_x = paddle_x;
+            }
+          }
+          else
+          {
+            new_x = paddle_x;
+          }
+        }
+        
+        
+        //Check to make sure that the paddle doesn't go off the end of the screen.
+        //Check the left boundary
+        if (new_x < LEFT_BOUNDARY)
+        {
+          //If the paddle would move past the left boundary, then just set it to
+          //the edge.
+          new_x = LEFT_BOUNDARY;
+        }
+        
+        //Check the right boundary
+        else if ((new_x + PADDLE_LENGTH) > RIGHT_BOUNDARY)
+        {
+          //If the paddle would move past the right boundary, then just set it to
+          //the edge.
+          new_x = (RIGHT_BOUNDARY - PADDLE_LENGTH);
+        }
+        
+        //Redraw the paddle and update its position.
+        video_paint_rect(paddle_x, paddle_y, PADDLE_LENGTH, PADDLE_HEIGHT, 0);
+        video_paint_rect(new_x, paddle_y, PADDLE_LENGTH, PADDLE_HEIGHT,
+        PADDLE_COLOR);
+        
+        paddle_x = new_x;
       }
     }
     
@@ -766,6 +828,23 @@ uint16_t bg, bool is_lives)
   }
 }
 
+//=============================================================================
+void reset_demo_timer()
+{
+  __disable_irq();
+  demo_timer = 0;
+  __enable_irq();
+}
+
+//=============================================================================
+void wait_for_button_release()
+{
+  //Wait for the button to be released
+  while (buttons_get() != NO_BUTTON)
+  {
+  }
+}
+
 //-----------------------------------------------------------------------------
 //        __   __   __
 //     | /__` |__) /__`
@@ -775,4 +854,5 @@ uint16_t bg, bool is_lives)
 void SysTick_Handler()
 {
   millis ++;
+  demo_timer++;
 }
