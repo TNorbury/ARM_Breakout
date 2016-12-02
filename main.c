@@ -5,12 +5,13 @@
 //
 //------------------------------------------------------------------------------
 
-#include "sam.h"
-#include "joystick.h"
-#include "spi.h"
-#include "video.h"
-#include "font.h"
 #include "buttons.h"
+#include "joystick.h"
+#include "font.h"
+#include "sam.h"
+#include "spi.h"
+#include "speaker.h"
+#include "video.h"
 
 #include <stdbool.h>
 #include <stdlib.h>
@@ -162,6 +163,7 @@ int main(void)
   //Initialize drivers
   buttons_init();
   joystick_init();
+  speaker_init();
   video_init();
 
   SysTick_Config(48000); //  Configure the SysTick timer for a ms
