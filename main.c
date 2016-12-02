@@ -46,6 +46,8 @@
 #define PADDLE_COLOR (0x0C5A)
 #define PADDLE_SPEED (2)
 #define PADDLE_CENTER ((paddle_x + PADDLE_LENGTH) - (PADDLE_LENGTH / 2))
+#define PADDLE_START_X (100)
+#define PADDLE_START_Y (190)
 
 #define BRICK_WIDTH (12)
 #define BRICK_HEIGHT (10)
@@ -58,6 +60,8 @@
 #define DEMO_MODE (1)
 #define LIMIT_MODE (2)
 #define UNLIMIT_MODE (3)
+
+#define PADDLE_TOP_BOUNDARY (140)
 
 //-----------------------------------------------------------------------------
 //     ___      __   ___  __   ___  ___  __
@@ -125,9 +129,6 @@ void wait_for_button_release();
 //
 //-----------------------------------------------------------------------------
 
-
-
-
 //=============================================================================
 int main(void)
 {
@@ -138,10 +139,11 @@ int main(void)
   uint8_t ball_speed = 1;
   uint8_t game_mode = NO_GAME;
   
-  uint8_t paddle_x = 100;
-  uint8_t paddle_y = 190;
+  uint8_t paddle_x = PADDLE_START_X;
+  uint8_t paddle_y = PADDLE_START_Y;
   
   uint16_t joy_x;
+  uint16_t joy_y;
   
   uint16_t high_score, current_score;
   uint8_t num_lives = 5;
@@ -177,9 +179,6 @@ int main(void)
 
   ball_x = PADDLE_CENTER;
   ball_y = paddle_y - BALL_SIZE - 1;
-
-  //Paint the ball in its initial spot.
-  video_paint_rect(ball_x, ball_y, BALL_SIZE, BALL_SIZE, 0xffff);
 
   ball_hort_dir = BALL_LEFT;
 
@@ -249,6 +248,14 @@ int main(void)
         init_game = true;
         game_mode = LIMIT_MODE;
       }
+      else if (buttons_get() == PB_1)
+      {
+        wait_for_button_release();
+        
+        start_screen = false;
+        init_game = true;
+        game_mode = UNLIMIT_MODE;
+      }
       
       if (demo_timer > 5000)
       {
@@ -288,12 +295,17 @@ int main(void)
       init_bricks(bricks);
       paint_bricks(bricks);
       
+      paddle_x = PADDLE_START_X;
+      paddle_y = PADDLE_START_Y;
+      
       //Reset the ball to it's initial position, direction, and speed.
       new_x = PADDLE_CENTER;
       new_y = paddle_y - BALL_SIZE - 1;
 
       ball_hort_dir = BALL_LEFT;
       ball_vert_dir = BALL_UP;
+      
+      ball_speed = 1;
       
       ball_hort_speed = ball_speed;
       ball_vert_speed = 1;
@@ -407,8 +419,10 @@ int main(void)
           }
         }
         
-        //if the ball will run into a boundary then calculate the difference
-        //between the ball and the boundary and then offset the ball by that much
+        
+        ////////////////////////////////////////////////////////////////////////
+        ///////////////////  Bounce the ball off of the walls  /////////////////
+        ////////////////////////////////////////////////////////////////////////
         
         //if the ball will run into the left boundary
         if (new_x < LEFT_BOUNDARY)
@@ -449,7 +463,7 @@ int main(void)
           //otherwise, decrease the total amount of lives and update the display
           else if (game_mode != DEMO_MODE)
           {
-            num_lives --;
+            //num_lives --;
             display_score(num_lives, 25, 0, 0xffff, 0, true);
           }
           
@@ -463,11 +477,9 @@ int main(void)
           ball_hort_speed = ball_speed;
           ball_vert_speed = 1;
         }
-        
-        
-        //////////////////////////////////////////////////////////////////////////
-        ///////////////////  Bounce the ball off of the paddle  //////////////////
-        //////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////
+        ///////////////////  Bounce the ball off of the paddle  ////////////////
+        ////////////////////////////////////////////////////////////////////////
         
         //If the ball will run into the paddle, bounce it off the paddle.
         if (((new_x >= paddle_x - 5) && (new_x <= paddle_x + PADDLE_LENGTH))
@@ -503,6 +515,8 @@ int main(void)
         ball_x = new_x;
         ball_y = new_y;
         
+        
+        
         //////////////////////////////////////////////////////////////////////////
         ///////////////////  Move the paddle side to side  ///////////////////////
         //////////////////////////////////////////////////////////////////////////
@@ -532,11 +546,43 @@ int main(void)
           {
             new_x = paddle_x;
           }
+          
+          //If the game is in unlimited mode, move the paddle up and down using
+          //the y-axis on the joystick.
+          if (game_mode == UNLIMIT_MODE)
+          {
+            joy_y = joystick_get_Y_Value();
+            
+            //If the joystick is above the center, move the paddle up
+            if (joy_y < (JOYSTICK_CENTER - 150))
+            {
+              new_y = paddle_y - PADDLE_SPEED;
+            }
+            
+            //if the joystick is below the center, move the paddle down.
+            else if (joy_y > (JOYSTICK_CENTER))
+            {
+              new_y = paddle_y + PADDLE_SPEED;
+            }
+            
+            //Otherwise, the paddle can stay where it is.
+            else
+            {
+              new_y = paddle_y;
+            }
+          }
+          else
+          {
+            new_y = paddle_y;
+          }
         }
         
         //Otherwise, if in demo mode, have the paddle follow the ball
         else
         {
+          
+          //Maintain the paddle's vertical position.
+          new_y = paddle_y;
           
           //1 in 2 chance of the paddle not moving every frame.
           if (rand()%2 == 1)
@@ -583,12 +629,24 @@ int main(void)
           new_x = (RIGHT_BOUNDARY - PADDLE_LENGTH);
         }
         
+        //Make sure the paddle doesn't go off the bottom of the screen, or above
+        // the paddle boundary
+        if (new_y < PADDLE_TOP_BOUNDARY)
+        {
+          new_y = PADDLE_TOP_BOUNDARY;
+        }
+        else if ((new_y + PADDLE_HEIGHT) > BOTTOM_BOUNDARY)
+        {
+          new_y = (BOTTOM_BOUNDARY - PADDLE_HEIGHT);
+        }
+        
         //Redraw the paddle and update its position.
         video_paint_rect(paddle_x, paddle_y, PADDLE_LENGTH, PADDLE_HEIGHT, 0);
-        video_paint_rect(new_x, paddle_y, PADDLE_LENGTH, PADDLE_HEIGHT,
+        video_paint_rect(new_x, new_y, PADDLE_LENGTH, PADDLE_HEIGHT,
         PADDLE_COLOR);
         
         paddle_x = new_x;
+        paddle_y = new_y;
       }
     }
     
@@ -656,14 +714,14 @@ int8_t hort_speed, int8_t vert_speed)
       
       //if any part of the ball passes through a brick, set the brick_hit flag
       if (
-      ((((*new_x + BALL_SIZE) > bricks[i].x)
-      && ((*new_x + BALL_SIZE) < (bricks[i].x + BRICK_WIDTH)))
-      && (((*new_y + BALL_SIZE) > bricks[i].y)
-      && ((*new_y + BALL_SIZE) < (bricks[i].y + BRICK_HEIGHT))))
-      || (((*new_x < (bricks[i].x + BRICK_WIDTH))
-      && (*new_x > bricks[i].x))
-      && (*new_y < (bricks[i].y + BRICK_HEIGHT))
-      && (*new_y > bricks[i].y))
+      ((((*new_x + BALL_SIZE) >= bricks[i].x)
+      && ((*new_x + BALL_SIZE) <= (bricks[i].x + BRICK_WIDTH)))
+      && (((*new_y + BALL_SIZE) >= bricks[i].y)
+      && ((*new_y + BALL_SIZE) <= (bricks[i].y + BRICK_HEIGHT))))
+      || (((*new_x <= (bricks[i].x + BRICK_WIDTH))
+      && (*new_x >= bricks[i].x))
+      && (*new_y <= (bricks[i].y + BRICK_HEIGHT))
+      && (*new_y >= bricks[i].y))
       )
       {
         brick_hit = true;
@@ -679,8 +737,10 @@ int8_t hort_speed, int8_t vert_speed)
           
           *vert_dir = BALL_DOWN;
 
-          *new_y = (bricks[i].y + BRICK_HEIGHT) + ((*vert_dir * vert_speed)
-          - (ball_y - (bricks[i].y + BRICK_HEIGHT)));
+          //*new_y = (bricks[i].y + BRICK_HEIGHT) + ((*vert_dir * vert_speed)
+          //- (ball_y - (bricks[i].y + BRICK_HEIGHT)));
+          
+          *new_y = (bricks[i].y + BRICK_HEIGHT);
         }
         else if ((ball_x <= bricks[i].x) && (*hort_dir == BALL_RIGHT))
         {
@@ -688,8 +748,10 @@ int8_t hort_speed, int8_t vert_speed)
           
           *hort_dir = BALL_LEFT;
 
-          *new_x = bricks[i].x + ((*hort_dir * hort_speed)
-          - (ball_x - bricks[i].x));
+          //*new_x = bricks[i].x + ((*hort_dir * hort_speed)
+          //- (ball_x - bricks[i].x));
+          
+          *new_x = bricks[i].x - BALL_SIZE;
         }
         else if ((ball_y <= bricks[i].y) && (*vert_dir == BALL_DOWN))
         {
@@ -697,8 +759,10 @@ int8_t hort_speed, int8_t vert_speed)
           
           *vert_dir = BALL_UP;
 
-          new_y = bricks[i].y + ((*vert_dir * vert_speed)
-          - (bricks[i].y - *new_y));
+          //*new_y = bricks[i].y + ((*vert_dir * vert_speed)
+          //- (bricks[i].y - *new_y));
+          
+          *new_y = bricks[i].y - BALL_SIZE;
         }
         else if ((ball_x >= (bricks[i].x + BRICK_WIDTH))
         && (*hort_dir == BALL_LEFT))
@@ -707,8 +771,10 @@ int8_t hort_speed, int8_t vert_speed)
           
           *hort_dir = BALL_RIGHT;
 
-          *new_x = (bricks[i].x + BRICK_WIDTH) + ((*hort_dir * hort_speed)
-          - ((bricks[i].x + BRICK_WIDTH) - ball_x));
+          //*new_x = (bricks[i].x + BRICK_WIDTH) + ((*hort_dir * hort_speed)
+          //- ((bricks[i].x + BRICK_WIDTH) - ball_x));
+          
+          *new_x = (bricks[i].x + BRICK_WIDTH);
         }
         
         //Paint the brick that was hit black.

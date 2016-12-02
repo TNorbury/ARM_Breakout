@@ -161,9 +161,12 @@ uint16_t joystick_get_Y_Value()
     joystick_sync();
   }
   
-  ////Flush the current result
-  //ADC->SWTRIG.bit.FLUSH = 1;
-  //joystick_sync();
+  //Flush the current result
+  ADC->SWTRIG.bit.FLUSH = 1;
+  joystick_sync();
+  
+  //clear the result ready flag.
+  ADC->INTFLAG.bit.RESRDY = 1;  
   
   //Wait for a result to be ready
   while(!ADC->INTFLAG.bit.RESRDY);
@@ -174,14 +177,6 @@ uint16_t joystick_get_Y_Value()
 
   result = ADC->RESULT.reg;
   joystick_sync();
-  
-  
-  //while(!ADC->INTFLAG.bit.RESRDY);
-  //joystick_sync();
-  //
-  //
-  //result = ADC->RESULT.reg;
-  //joystick_sync();
 
   return result;
 }
@@ -223,7 +218,6 @@ uint16_t joystick_get_X_Value()
   
   //clear the result ready flag.
   ADC->INTFLAG.bit.RESRDY = 1;
-  
   
   result = ADC->RESULT.reg;
   joystick_sync();
