@@ -64,6 +64,13 @@
 
 #define PADDLE_TOP_BOUNDARY (140)
 
+#define G4 (115)
+#define D4 (154)
+#define B3 (190)
+#define G3 (229)
+
+#define NOTE_LENGTH (100)
+
 //-----------------------------------------------------------------------------
 //     ___      __   ___  __   ___  ___  __
 //      |  \ / |__) |__  |  \ |__  |__  /__`
@@ -97,6 +104,7 @@ enum uint8_t {
 
 static volatile uint32_t millis;
 static volatile uint32_t demo_timer;
+static volatile uint32_t note_timer;
 static const uint16_t ROW_COLORS[6] = {0x1d60, 0x93BB, 0x70E6, 0x4639, 0xCD28,
 0x4B4E};
 static font_t* font6x8;
@@ -121,6 +129,7 @@ void display_score(uint16_t score, uint8_t x, uint8_t y, uint16_t fg,
 uint16_t bg, bool is_lives);
 void reset_demo_timer();
 void wait_for_button_release();
+void play_note(uint32_t note);
 
 
 //-----------------------------------------------------------------------------
@@ -154,6 +163,7 @@ int main(void)
   bool demo_mode = true;
   bool init_game = false;
   bool start_screen = true;
+  bool boundary_hit = false;
   
   brick_t bricks[(BRICKS_IN_ROW * NUM_ROWS)];
 
@@ -219,6 +229,8 @@ int main(void)
       video_paint_string("to return to the", font6x8, 41, 134, 0x07FE, 0);
       video_paint_string("start menu", font6x8, 41, 142, 0x07FE, 0);
       
+      //Turn the speaker off
+      speaker_disable();
       
       //Wait for a button to be pressed before playing again.
       while (buttons_get() == NO_BUTTON)
@@ -313,6 +325,15 @@ int main(void)
       ball_vert_speed = 1;
     }
     
+    if (note_timer > NOTE_LENGTH)
+    {
+      speaker_disable();
+      
+      __disable_irq();
+      note_timer = 0;
+      __enable_irq();
+    }
+    
     if (millis > 16)
     {
       __disable_irq();
@@ -322,7 +343,6 @@ int main(void)
       //If demo mode is active have the computer play the game.
       if (game_mode == DEMO_MODE)
       {
-        //video_paint_string("DEMO", font6x8, 25, 126, 0xffff, 0);
         video_paint_string("Press any button to", font6x8, 20, 134, 0x07FE, 0);
         video_paint_string("stop demo", font6x8, 20, 142, 0x07FE, 0);
         
@@ -417,6 +437,10 @@ int main(void)
               init_bricks(bricks);
               paint_bricks(bricks);
             }
+            else
+            {
+              play_note(G3);
+            }
             
           }
         }
@@ -433,6 +457,8 @@ int main(void)
           
           new_x = LEFT_BOUNDARY + ((ball_hort_dir * ball_hort_speed)
           - (ball_x - LEFT_BOUNDARY));
+          
+          boundary_hit = true;
         }
         
         //Otherwise if the ball will run into the right boundary.
@@ -442,6 +468,7 @@ int main(void)
           
           new_x = RIGHT_BOUNDARY + ((ball_hort_dir * ball_hort_speed)
           - (RIGHT_BOUNDARY - ball_x));
+          boundary_hit = true;
         }
         
         
@@ -452,6 +479,7 @@ int main(void)
           
           new_y = TOP_BOUNDARY + ((ball_vert_dir * ball_vert_speed)
           - (ball_y - TOP_BOUNDARY));
+          boundary_hit = true;
         }
         
         //Otherwise, if the ball will run into the bottom boundary
@@ -465,7 +493,7 @@ int main(void)
           //otherwise, decrease the total amount of lives and update the display
           else if (game_mode != DEMO_MODE)
           {
-            //num_lives --;
+            num_lives --;
             display_score(num_lives, 25, 0, 0xffff, 0, true);
           }
           
@@ -478,7 +506,16 @@ int main(void)
           
           ball_hort_speed = ball_speed;
           ball_vert_speed = 1;
+          
+          boundary_hit = true;
         }
+        
+        if (boundary_hit)
+        {
+          boundary_hit = false;
+          play_note(D4);
+        }
+        
         ////////////////////////////////////////////////////////////////////////
         ///////////////////  Bounce the ball off of the paddle  ////////////////
         ////////////////////////////////////////////////////////////////////////
@@ -507,6 +544,9 @@ int main(void)
           //Calculate how far up the ball needs to bounce
           new_y = paddle_y + ((ball_vert_dir * ball_vert_speed)
           - (paddle_y - new_y));
+          
+          //Play a sound for bouncing off the paddle
+          play_note(G4);
         }
         
         //Move the ball based on its speed. Paint it's old position black and then
@@ -913,6 +953,17 @@ void wait_for_button_release()
   }
 }
 
+//=============================================================================
+void play_note(uint32_t note)
+{
+  speaker_enable();
+  speaker_set(note);
+  
+  __disable_irq();
+  note_timer = 0;
+  __enable_irq();
+}
+
 //-----------------------------------------------------------------------------
 //        __   __   __
 //     | /__` |__) /__`
@@ -923,4 +974,5 @@ void SysTick_Handler()
 {
   millis ++;
   demo_timer++;
+  note_timer++;
 }

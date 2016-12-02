@@ -59,8 +59,6 @@ void speaker_init()
   GCLK_CLKCTRL_GEN_GCLK1 | // Generic Clock Generator 1 is source
   GCLK_CLKCTRL_CLKEN ;
   
-  speaker_disable();
-  
   // Enable Multiplexing
   PORT->Group[SPEAKER_GROUP].PINCFG[SPEAKER_PIN].bit.PMUXEN = 1;
   
@@ -88,7 +86,7 @@ void speaker_init()
   }
   
   //   Select the Waveform Generation operation in WAVE register (WAVE.WAVEGEN)
-  TCC1->WAVE.bit.WAVEGEN      = 0x0;      // Normal frequency
+  TCC1->WAVE.bit.WAVEGEN      = 0x1;      // Match frequency
   while ( TCC1->SYNCBUSY.bit.WAVE )
   {
     ;
@@ -100,7 +98,7 @@ void speaker_init()
   {
     ;
   }
-    
+  
   //   The waveform output can be inverted for the individual channels using the
   // Waveform Output Invert Enable bit group in the Driver register
   //(DRVCTRL.INVEN)
@@ -114,17 +112,11 @@ void speaker_init()
   {
     ;
   }
-  
   while(TCC1->SYNCBUSY.bit.CTRLB);
 }
 
-//==============================================================================
 void speaker_set(uint32_t frequency)
 {
-  TCC1->PER.bit.PER = frequency;
-  while (TCC1->SYNCBUSY.bit.PER)
-  {}
-  
   TCC1->CCB[0].bit.CCB = (frequency / 2);
   while (TCC1->SYNCBUSY.bit.CCB0)
   {
@@ -132,7 +124,6 @@ void speaker_set(uint32_t frequency)
   }
 }
 
-//==============================================================================
 void speaker_disable()
 {
   while (TCC1 ->SYNCBUSY.bit.ENABLE)
@@ -146,7 +137,6 @@ void speaker_disable()
   }
 }
 
-//==============================================================================
 void speaker_enable()
 {
   TCC1->CTRLA.bit.ENABLE = 1;
