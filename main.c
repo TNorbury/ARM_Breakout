@@ -94,12 +94,12 @@ typedef struct {
 //-----------------------------------------------------------------------------
 
 enum uint8_t {
-  level_1,
-  level_2,
-  level_3,
-  level_4,
-  level_5,
-  level_6
+  LEVEL_1,
+  LEVEL_2,
+  LEVEL_3,
+  LEVEL_4,
+  LEVEL_5,
+  LEVEL_6
 };
 
 static volatile uint32_t millis;
@@ -122,7 +122,7 @@ static uint8_t brick_count;
 
 void init_bricks(brick_t* bricks);
 void paint_bricks(brick_t* bricks);
-bool check_brick_collision(brick_t* bricks, uint8_t ball_x, uint8_t ball_y,
+bool check_brick_collision(uint16_t* score, brick_t* bricks, uint8_t ball_x, uint8_t ball_y,
 uint8_t* new_x, uint8_t* new_y, int8_t* hort_dir, int8_t* vert_dir,
 int8_t hort_speed, int8_t vert_speed);
 void display_score(uint16_t score, uint8_t x, uint8_t y, uint16_t fg,
@@ -157,12 +157,9 @@ int main(void)
   
   uint16_t high_score, current_score;
   uint8_t num_lives = 5;
-  uint8_t current_level = level_1;
   
   bool game_over = false;
-  bool demo_mode = true;
   bool init_game = false;
-  bool start_screen = true;
   bool boundary_hit = false;
   
   brick_t bricks[(BRICKS_IN_ROW * NUM_ROWS)];
@@ -258,7 +255,6 @@ int main(void)
         //Wait for the button to be released
         wait_for_button_release();
         
-        start_screen = false;
         init_game = true;
         game_mode = LIMIT_MODE;
       }
@@ -266,14 +262,12 @@ int main(void)
       {
         wait_for_button_release();
         
-        start_screen = false;
         init_game = true;
         game_mode = UNLIMIT_MODE;
       }
       
       if (demo_timer > 5000)
       {
-        start_screen = false;
         init_game = true;
         game_mode = DEMO_MODE;
         
@@ -286,7 +280,6 @@ int main(void)
         
         ball_hort_speed = ball_speed;
         ball_vert_speed = 1;
-        
         
         video_paint_rect(ball_x, ball_y, BALL_SIZE, BALL_SIZE, 0);
         video_paint_rect(new_x, new_y, BALL_SIZE, BALL_SIZE, BALL_COLOR);
@@ -301,7 +294,6 @@ int main(void)
       init_game = false;
       
       current_score = 0;
-      current_level = level_1;
       num_lives = 5;
       display_score(num_lives, 25, 0, 0xffff, 0, true);
       display_score(current_score, 104, 0, 0xffff, 0, false);
@@ -334,6 +326,9 @@ int main(void)
       __enable_irq();
     }
     
+    ////////////////////////////////////////////////////////////////////////
+    ///////////////  Refresh the screen every 1/60 of a second  ////////////
+    //////////////////////////////////////////////////////////////////////// 
     if (millis > 16)
     {
       __disable_irq();
@@ -351,13 +346,11 @@ int main(void)
         {
           wait_for_button_release();
           
-          start_screen = true;
           init_game = true;
           game_mode = NO_GAME;
           
           //Reset the demo timer
           reset_demo_timer();
-
         }
       }
       
@@ -366,28 +359,16 @@ int main(void)
         new_y = ball_y + (ball_vert_dir * ball_vert_speed);
         new_x = ball_x + (ball_hort_dir * ball_hort_speed);
         
-        //////////////////////////////////////////////////////////////////////////
-        ///////////////////  Check if the ball will hit a brick  /////////////////
-        //////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////
+        ///////////////////  Check if the ball will hit a brick  ///////////////
+        ////////////////////////////////////////////////////////////////////////
         if (new_y < BRICK_BOTTOM_BOUNDARY)
         {
           
           //If any bricks were hit, increment the score and redraw the display
-          if (check_brick_collision(bricks, ball_x, ball_y, &new_x, &new_y,
-          &ball_hort_dir, &ball_vert_dir, ball_hort_speed, ball_vert_speed))
+          if (check_brick_collision(&current_score, bricks, ball_x, ball_y, &new_x,
+          &new_y, &ball_hort_dir, &ball_vert_dir, ball_hort_speed, ball_vert_speed))
           {
-            if (current_level == level_1 || current_level == level_2)
-            {
-              current_score++;
-            }
-            else if (current_level == level_3 || current_level == level_4)
-            {
-              current_score += 4;
-            }
-            else if (current_level == level_5 || current_level == level_6)
-            {
-              current_score += 7;
-            }
             
             //Re-seed the randomizer
             srand(current_score);
@@ -405,17 +386,10 @@ int main(void)
             //level.
             if (brick_count == 0)
             {
-              if (current_level != level_6)
-              {
-                current_level ++;
-              }
-              else
-              {
-                current_level = 0;
-                
-                //Increase the ball's speed
-                ball_speed += 1;
-              }
+              
+              //Increase the ball's speed
+              ball_speed += 1;
+              
               
               //Reset the ball to it's initial position, direction, and speed.
               new_x = PADDLE_CENTER;
@@ -445,7 +419,6 @@ int main(void)
           }
         }
         
-        
         ////////////////////////////////////////////////////////////////////////
         ///////////////////  Bounce the ball off of the walls  /////////////////
         ////////////////////////////////////////////////////////////////////////
@@ -470,7 +443,6 @@ int main(void)
           - (RIGHT_BOUNDARY - ball_x));
           boundary_hit = true;
         }
-        
         
         //If the ball will run into the TOP boundary
         if (new_y < TOP_BOUNDARY)
@@ -556,7 +528,6 @@ int main(void)
         
         ball_x = new_x;
         ball_y = new_y;
-        
         
         
         //////////////////////////////////////////////////////////////////////////
@@ -653,7 +624,6 @@ int main(void)
           }
         }
         
-        
         //Check to make sure that the paddle doesn't go off the end of the screen.
         //Check the left boundary
         if (new_x < LEFT_BOUNDARY)
@@ -691,7 +661,6 @@ int main(void)
         paddle_y = new_y;
       }
     }
-    
   }
 }
 
@@ -740,11 +709,12 @@ void paint_bricks(brick_t* bricks)
 }
 
 //=============================================================================
-bool check_brick_collision(brick_t* bricks, uint8_t ball_x, uint8_t ball_y,
+bool check_brick_collision(uint16_t* score, brick_t* bricks, uint8_t ball_x, uint8_t ball_y,
 uint8_t* new_x, uint8_t* new_y, int8_t* hort_dir, int8_t* vert_dir,
 int8_t hort_speed, int8_t vert_speed)
 {
   bool brick_hit = false;
+  uint8_t current_level;
   
   //Iterate through all the bricks
   for (int i = 0; (i < (BRICKS_IN_ROW * NUM_ROWS)) && !brick_hit; i++)
@@ -778,9 +748,6 @@ int8_t hort_speed, int8_t vert_speed)
           brick_hit = true;
           
           *vert_dir = BALL_DOWN;
-
-          //*new_y = (bricks[i].y + BRICK_HEIGHT) + ((*vert_dir * vert_speed)
-          //- (ball_y - (bricks[i].y + BRICK_HEIGHT)));
           
           *new_y = (bricks[i].y + BRICK_HEIGHT);
         }
@@ -789,9 +756,6 @@ int8_t hort_speed, int8_t vert_speed)
           brick_hit = true;
           
           *hort_dir = BALL_LEFT;
-
-          //*new_x = bricks[i].x + ((*hort_dir * hort_speed)
-          //- (ball_x - bricks[i].x));
           
           *new_x = bricks[i].x - BALL_SIZE;
         }
@@ -800,9 +764,6 @@ int8_t hort_speed, int8_t vert_speed)
           brick_hit = true;
           
           *vert_dir = BALL_UP;
-
-          //*new_y = bricks[i].y + ((*vert_dir * vert_speed)
-          //- (bricks[i].y - *new_y));
           
           *new_y = bricks[i].y - BALL_SIZE;
         }
@@ -812,9 +773,6 @@ int8_t hort_speed, int8_t vert_speed)
           brick_hit = true;
           
           *hort_dir = BALL_RIGHT;
-
-          //*new_x = (bricks[i].x + BRICK_WIDTH) + ((*hort_dir * hort_speed)
-          //- ((bricks[i].x + BRICK_WIDTH) - ball_x));
           
           *new_x = (bricks[i].x + BRICK_WIDTH);
         }
@@ -824,6 +782,23 @@ int8_t hort_speed, int8_t vert_speed)
         video_paint_rect(bricks[i].x, bricks[i].y, BRICK_WIDTH, BRICK_HEIGHT, 0);
         
         brick_count --;
+        
+        //Increase the score
+        //Determine which row the destroyed brick was on and adjust the score 
+        //accordingly.
+        current_level = i / BRICKS_IN_ROW;
+        if (current_level == LEVEL_1 || current_level == LEVEL_2)
+        {
+          *score += 1;
+        }
+        else if (current_level == LEVEL_3 || current_level == LEVEL_4)
+        {
+          *score += 4;
+        }
+        else if (current_level == LEVEL_5 || current_level == LEVEL_6)
+        {
+          *score += 7;
+        }
       }
     }
   }
